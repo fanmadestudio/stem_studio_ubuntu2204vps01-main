@@ -1,4 +1,4 @@
-# STEM Studio Codex
+# STEM Studio
 
 Monorepo aplikasi manajemen studio recording.
 
