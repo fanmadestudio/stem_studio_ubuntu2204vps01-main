@@ -1,16 +1,17 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / ".env"
 
 
 def _load_env_file() -> None:
-    env_path = BASE_DIR / ".env"
-    if not env_path.exists():
+    if not ENV_PATH.exists():
         return
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+    for raw_line in ENV_PATH.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -25,7 +26,69 @@ def _env_list(key: str, default: str = "") -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
+def _looks_like_placeholder(value: str | None) -> bool:
+    if not value:
+        return False
+    normalized = value.strip().lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "your-project-ref",
+            "replace-with",
+            "your-password",
+            "your-supabase-db-password",
+        )
+    )
+
+
+def _validate_database_env() -> None:
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    split_values = {
+        "DB_HOST": os.getenv("DB_HOST", "").strip(),
+        "DB_USER": os.getenv("DB_USER", "").strip(),
+        "DB_PASSWORD": os.getenv("DB_PASSWORD", "").strip(),
+    }
+
+    if not ENV_PATH.exists() and not database_url and not any(split_values.values()):
+        raise ImproperlyConfigured(
+            "Missing backend/.env. Copy backend/.env.example to backend/.env and fill in your Supabase database credentials."
+        )
+
+    if _looks_like_placeholder(database_url) or any(_looks_like_placeholder(value) for value in split_values.values()):
+        raise ImproperlyConfigured(
+            "Supabase database settings still contain example placeholder values. Update backend/.env with your real project ref, database password, and host."
+        )
+
+
+def _database_config_from_url(database_url: str) -> dict[str, object]:
+    parsed = urlparse(database_url)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise ImproperlyConfigured("DATABASE_URL must use a PostgreSQL scheme.")
+
+    query = parse_qs(parsed.query)
+    options = {
+        "sslmode": query.get("sslmode", [os.getenv("DB_SSLMODE", "prefer")])[0],
+        "connect_timeout": int(query.get("connect_timeout", [os.getenv("DB_CONNECT_TIMEOUT", "10")])[0]),
+    }
+    channel_binding = query.get("channel_binding", [os.getenv("DB_CHANNEL_BINDING", "")])[0]
+    if channel_binding:
+        options["channel_binding"] = channel_binding
+
+    return {
+        "ENGINE": "config.db.backends.postgresql",
+        "NAME": parsed.path.lstrip("/") or os.getenv("DB_NAME", "postgres"),
+        "USER": parsed.username or os.getenv("DB_USER", "postgres"),
+        "PASSWORD": parsed.password or os.getenv("DB_PASSWORD", "postgres"),
+        "HOST": parsed.hostname or os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": str(parsed.port or os.getenv("DB_PORT", "5432")),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": os.getenv("DB_CONN_HEALTH_CHECKS", "1") == "1",
+        "OPTIONS": options,
+    }
+
+
 _load_env_file()
+_validate_database_env()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
@@ -91,20 +154,22 @@ elif db_engine != "config.db.backends.postgresql":
         "Only PostgreSQL-compatible backends are supported. Configure Supabase using PostgreSQL connection settings."
     )
 
-db_name = os.getenv("DB_NAME", "studio_recording")
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    database_settings = _database_config_from_url(database_url)
+else:
+    db_name = os.getenv("DB_NAME", "studio_recording")
+    db_options = {}
+    if "postgresql" in db_engine:
+        db_options = {
+            "sslmode": os.getenv("DB_SSLMODE", "prefer"),
+            "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
+        }
+        db_channel_binding = os.getenv("DB_CHANNEL_BINDING")
+        if db_channel_binding:
+            db_options["channel_binding"] = db_channel_binding
 
-db_options = {}
-if "postgresql" in db_engine:
-    db_options = {
-        "sslmode": os.getenv("DB_SSLMODE", "prefer"),
-        "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
-    }
-    db_channel_binding = os.getenv("DB_CHANNEL_BINDING")
-    if db_channel_binding:
-        db_options["channel_binding"] = db_channel_binding
-
-DATABASES = {
-    "default": {
+    database_settings = {
         "ENGINE": db_engine,
         "NAME": db_name,
         "USER": os.getenv("DB_USER", "postgres"),
@@ -115,7 +180,8 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": os.getenv("DB_CONN_HEALTH_CHECKS", "1") == "1",
         "OPTIONS": db_options,
     }
-}
+
+DATABASES = {"default": database_settings}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

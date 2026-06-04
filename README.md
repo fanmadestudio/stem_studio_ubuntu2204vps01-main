@@ -74,6 +74,14 @@ DB_PORT=5432
 DB_SSLMODE=require
 ```
 
+Atau jika kamu sudah punya 1 connection string dari Supabase, backend sekarang juga bisa langsung pakai:
+
+```env
+DATABASE_URL=postgresql://postgres.your-project-ref:your-password@aws-0-your-region.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+Untuk environment seperti CodeSandbox yang biasanya IPv4-only, lebih aman pakai **Supavisor session pooler** (`*.pooler.supabase.com:5432`) daripada direct host `db.<project-ref>.supabase.co:5432`, kecuali project Supabase kamu memang sudah support IPv4 direct connection.
+
 ### 2) Frontend (Next.js)
 
 ```powershell
@@ -89,6 +97,114 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
 Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.
+
+## Deploy di CodeSandbox
+
+Cara paling simpel untuk repo ini di CodeSandbox adalah menjalankan **frontend** dan **backend** dalam 1 Devbox, dengan backend di port `8000` dan frontend di port `3000`.
+
+### 1) Import repo ke CodeSandbox
+
+- Buka CodeSandbox lalu pilih import dari GitHub/repo zip.
+- Tunggu dependency scanning selesai.
+
+### 2) Siapkan backend env
+
+- Buka folder `backend/`.
+- Copy `backend/.env.example` jadi `backend/.env`.
+- Isi **salah satu** cara berikut:
+
+Opsi A — paling praktis, pakai 1 connection string:
+
+```env
+DJANGO_SECRET_KEY=ganti-dengan-secret-random
+DJANGO_DEBUG=1
+DJANGO_ALLOWED_HOSTS=*
+DJANGO_CORS_ALLOW_ALL_ORIGINS=1
+DATABASE_URL=postgresql://postgres.your-project-ref:your-password@aws-0-your-region.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+Opsi B — pakai split variables:
+
+```env
+DJANGO_SECRET_KEY=ganti-dengan-secret-random
+DJANGO_DEBUG=1
+DJANGO_ALLOWED_HOSTS=*
+DJANGO_CORS_ALLOW_ALL_ORIGINS=1
+DB_NAME=postgres
+DB_USER=postgres.your-project-ref
+DB_PASSWORD=your-password
+DB_HOST=aws-0-your-region.pooler.supabase.com
+DB_PORT=5432
+DB_SSLMODE=require
+```
+
+### 3) Jalankan backend
+
+Di terminal 1:
+
+```bash
+cd backend
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_credentials
+python manage.py runserver 0.0.0.0:8000
+```
+
+Kalau migrate sukses, berarti koneksi ke Supabase sudah benar.
+
+### 4) Siapkan frontend env
+
+- Buka folder `frontend/`.
+- Buat file `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://<backend-port-url-dari-codesandbox>
+```
+
+Kalau CodeSandbox memberi URL port backend seperti `https://abcd-8000.csb.app`, isi:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://abcd-8000.csb.app
+```
+
+### 5) Jalankan frontend
+
+Di terminal 2:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Lalu buka preview port `3000`.
+
+### 6) Izinkan origin frontend ke backend
+
+Kalau login/API kena error CORS atau CSRF, tambahkan domain preview frontend CodeSandbox ke `backend/.env`:
+
+```env
+DJANGO_CORS_ALLOWED_ORIGINS=https://<frontend-url-codesandbox>
+DJANGO_CSRF_TRUSTED_ORIGINS=https://<frontend-url-codesandbox>
+```
+
+Kalau masih mode `DJANGO_DEBUG=1` dan `DJANGO_CORS_ALLOW_ALL_ORIGINS=1`, biasanya ini tidak diperlukan untuk testing awal.
+
+### 7) Test login
+
+- Buka preview frontend.
+- Login dengan:
+  - `admin@stemstudio.com / 4dm1nst3mstvd10`
+  - `staff@stemstudio.com / St4ffst3mstvd10`
+
+### 8) Kalau backend gagal connect ke Supabase
+
+Cek hal berikut:
+
+- pakai **pooler host** `*.pooler.supabase.com`, bukan `db.*.supabase.co`, jika CodeSandbox tidak support direct IPv6;
+- port untuk persistent app traffic adalah `5432` pada **session pooler**;
+- tambahkan `?sslmode=require` pada `DATABASE_URL`;
+- pastikan password yang dipakai adalah password database Supabase, bukan anon/service API key.
 
 ## Default Credential Seed
 
