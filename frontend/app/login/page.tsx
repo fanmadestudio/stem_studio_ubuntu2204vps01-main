@@ -3,10 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../lib/api";
-
-const AUTH_NAME_KEY = "studio_name";
-const AUTH_EXPIRY_KEY = "auth_expires_at";
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+import { signInWithSupabase, signOutFromSupabase } from "../lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,21 +23,16 @@ export default function LoginPage() {
 
     try {
       setSubmitting(true);
-      const payload = await apiFetch<{ access: string; refresh: string; user: { name: string; email: string } }>("/api/v1/auth/token/", {
-        method: "POST",
-        body: JSON.stringify({ email: trimmedEmail, password })
-      });
-      const expiresAt = Date.now() + THIRTY_MINUTES_MS;
-      localStorage.setItem("access", payload.access);
-      localStorage.setItem("refresh", payload.refresh);
-      localStorage.setItem(AUTH_NAME_KEY, payload.user.name || payload.user.email);
-      localStorage.setItem(AUTH_EXPIRY_KEY, String(expiresAt));
-      localStorage.setItem("user_name", payload.user.name || payload.user.email);
-      localStorage.setItem("name", payload.user.name || payload.user.email);
+      await signInWithSupabase(trimmedEmail, password);
+      const profile = await apiFetch<{ first_name: string; last_name: string; email: string; role: "admin" | "staff" | "client" }>("/api/v1/auth/profile/");
+      const displayName = `${profile.first_name} ${profile.last_name}`.trim() || profile.email;
+      localStorage.setItem("user_name", displayName);
+      localStorage.setItem("name", displayName);
       setError("");
       router.replace("/");
     } catch {
-      setError("Login failed. Check email/password.");
+      await signOutFromSupabase();
+      setError("Login failed. Check Supabase account and make sure it matches an existing app user role.");
     } finally {
       setSubmitting(false);
     }
@@ -81,4 +73,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

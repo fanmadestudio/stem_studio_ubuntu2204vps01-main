@@ -4,14 +4,15 @@ Monorepo aplikasi manajemen studio recording.
 
 ## Stack Implementasi
 
-- `backend/`: Django 4.2 + Django REST Framework + JWT (`simplejwt`)
+- `backend/`: Django 4.2 + Django REST Framework
 - `frontend/`: Next.js 15 (App Router) + React 19 + TypeScript
 - API base path: `/api/v1/`
 - Database: Supabase PostgreSQL (`DB_ENGINE=django.db.backends.postgresql`)
+- Authentication: Supabase Auth (email/password) with Django role mapping (`admin`, `staff`, `client`)
 
 ## Fitur yang Sudah Diimplementasikan
 
-- Login JWT (`/login`) dan penyimpanan token di `localStorage`
+- Login Supabase Auth (`/login`) dengan sesi yang disinkronkan ke frontend
 - Dashboard (`/`) dengan KPI, tren, aktivitas booking, dan health API
 - Manajemen Client (`/clients`)
 - Booking + konflik jadwal dari backend (`/booking`)
@@ -31,10 +32,7 @@ Monorepo aplikasi manajemen studio recording.
 ## API Utama (Aktif)
 
 - Auth:
-  - `POST /api/v1/auth/token/`
-  - `POST /api/v1/auth/token/refresh/`
   - `GET/PATCH /api/v1/auth/profile/`
-  - `POST /api/v1/auth/register/`
 - Master:
   - `/api/v1/clients/`
   - `/api/v1/rooms/`
@@ -66,6 +64,8 @@ Contoh `.env` backend (Supabase PostgreSQL) sudah ada di `backend/.env.example`.
 Isi dengan connection credentials dari project Supabase. Minimal yang perlu diubah:
 
 ```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 DB_NAME=postgres
 DB_USER=postgres.your-project-ref
 DB_PASSWORD=your-supabase-db-password
@@ -94,6 +94,8 @@ Opsional `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
 
 Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.
@@ -120,6 +122,8 @@ DJANGO_SECRET_KEY=ganti-dengan-secret-random
 DJANGO_DEBUG=1
 DJANGO_ALLOWED_HOSTS=*
 DJANGO_CORS_ALLOW_ALL_ORIGINS=1
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 DATABASE_URL=postgresql://postgres.your-project-ref:your-password@aws-0-your-region.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
@@ -130,6 +134,8 @@ DJANGO_SECRET_KEY=ganti-dengan-secret-random
 DJANGO_DEBUG=1
 DJANGO_ALLOWED_HOSTS=*
 DJANGO_CORS_ALLOW_ALL_ORIGINS=1
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 DB_NAME=postgres
 DB_USER=postgres.your-project-ref
 DB_PASSWORD=your-password
@@ -159,6 +165,8 @@ Kalau migrate sukses, berarti koneksi ke Supabase sudah benar.
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://<backend-port-url-dari-codesandbox>
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
 
 Kalau CodeSandbox memberi URL port backend seperti `https://abcd-8000.csb.app`, isi:
@@ -193,9 +201,10 @@ Kalau masih mode `DJANGO_DEBUG=1` dan `DJANGO_CORS_ALLOW_ALL_ORIGINS=1`, biasany
 ### 7) Test login
 
 - Buka preview frontend.
-- Login dengan:
-  - `admin@stemstudio.com / 4dm1nst3mstvd10`
-  - `staff@stemstudio.com / St4ffst3mstvd10`
+- Buat 2 akun Supabase Auth dengan email yang sama seperti user Django seed:
+  - `admin@stemstudio.com`
+  - `staff@stemstudio.com`
+- Login memakai password akun Supabase tersebut.
 
 ### 8) Kalau backend gagal connect ke Supabase
 
@@ -215,12 +224,13 @@ cd backend
 py -3 manage.py seed_credentials
 ```
 
-Credential:
+Credential role di database Django:
 
 - `admin@stemstudio.com / 4dm1nst3mstvd10`
 - `staff@stemstudio.com / St4ffst3mstvd10`
 
 `seed_credentials` aman dijalankan berulang (update-or-create).
+Kalau memakai Supabase Auth, buat akun Auth dengan email yang sama agar role lama tetap terhubung otomatis saat login pertama.
 
 ## Playbook Data Singkat
 

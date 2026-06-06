@@ -9,10 +9,7 @@ import { SmartInsightsBox } from "./components/smart-insights-box";
 import { SystemHealthCard } from "./components/system-health-card";
 import { useTheme } from "./components/theme-provider";
 import { apiFetchList, getApiBase } from "./lib/api";
-
-const AUTH_NAME_KEY = "studio_name";
-const AUTH_EXPIRY_KEY = "auth_expires_at";
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+import { bootstrapSupabaseSession, signOutFromSupabase } from "./lib/auth";
 type ApiClient = { id: number; first_name: string; last_name: string };
 type ApiEngineer = { id: number; name: string; role: "engineer" | "staff"; is_available: boolean };
 type ApiRoom = { id: number; name: string };
@@ -46,43 +43,29 @@ export default function Home() {
   const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_NAME_KEY);
-    localStorage.removeItem(AUTH_EXPIRY_KEY);
-    localStorage.removeItem("user_name");
-    localStorage.removeItem("username");
-    localStorage.removeItem("name");
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
-    setAuthName("Not signed in");
-    router.replace("/login");
+    void signOutFromSupabase().finally(() => {
+      setAuthName("Not signed in");
+      router.replace("/login");
+    });
   }, [router]);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("user_name") ?? localStorage.getItem("username") ?? localStorage.getItem("name") ?? localStorage.getItem(AUTH_NAME_KEY);
-    if (!savedName) return;
-
-    const now = Date.now();
-    const rawExpiry = localStorage.getItem(AUTH_EXPIRY_KEY);
-    const parsedExpiry = rawExpiry ? Number(rawExpiry) : NaN;
-
-    if (Number.isFinite(parsedExpiry) && parsedExpiry <= now) {
-      logout();
-      return;
+    let active = true;
+    async function loadSession() {
+      const session = await bootstrapSupabaseSession();
+      if (!active) return;
+      const displayName =
+        localStorage.getItem("user_name") ??
+        localStorage.getItem("username") ??
+        localStorage.getItem("name") ??
+        session?.user.email ??
+        "Not signed in";
+      setAuthName(displayName);
     }
-
-    const expiresAt = Number.isFinite(parsedExpiry) ? parsedExpiry : now + THIRTY_MINUTES_MS;
-    localStorage.setItem(AUTH_EXPIRY_KEY, String(expiresAt));
-    setAuthName(savedName);
-
-    const timer = window.setTimeout(
-      () => {
-        logout();
-      },
-      Math.max(0, expiresAt - now),
-    );
-
-    return () => window.clearTimeout(timer);
+    void loadSession();
+    return () => {
+      active = false;
+    };
   }, [logout]);
 
   useEffect(() => {

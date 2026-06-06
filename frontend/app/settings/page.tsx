@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
 import { apiFetch } from "../lib/api";
+import { updateSupabasePassword } from "../lib/auth";
 
 type Profile = {
   id: number;
@@ -42,6 +43,9 @@ export default function SettingsPage() {
     const [first_name, ...rest] = name.split(" ");
     const last_name = rest.join(" ");
     try {
+      if (form.password.trim()) {
+        await updateSupabasePassword(form.password.trim());
+      }
       const payload: { first_name: string; last_name: string; password?: string } = { first_name, last_name };
       if (form.password.trim()) payload.password = form.password.trim();
       const updated = await apiFetch<Profile>("/api/v1/auth/profile/", {

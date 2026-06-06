@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from django.core.exceptions import ImproperlyConfigured
@@ -60,6 +59,12 @@ def _validate_database_env() -> None:
         )
 
 
+def _validate_supabase_auth_env() -> None:
+    missing = [key for key in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY") if not os.getenv(key, "").strip()]
+    if missing:
+        raise ImproperlyConfigured(f"Missing Supabase Auth settings in backend/.env: {', '.join(missing)}")
+
+
 def _database_config_from_url(database_url: str) -> dict[str, object]:
     parsed = urlparse(database_url)
     if parsed.scheme not in {"postgres", "postgresql"}:
@@ -89,10 +94,13 @@ def _database_config_from_url(database_url: str) -> dict[str, object]:
 
 _load_env_file()
 _validate_database_env()
+_validate_supabase_auth_env()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()
 
 AUTH_USER_MODEL = "users.User"
 
@@ -105,7 +113,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
-    "rest_framework_simplejwt.token_blacklist",
     "users",
     "clients",
     "resources",
@@ -192,20 +199,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "users.supabase_auth.SupabaseJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-}
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=30),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": True,
-    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 # Keep Django sessions aligned with JWT lifetime.
