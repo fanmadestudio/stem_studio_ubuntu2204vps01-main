@@ -3,4 +3,3 @@ djangorestframework==3.17.1
 django-cors-headers==4.9.0
 psycopg[binary]==3.3.4
 gunicorn==22.0.0
-PyJWT[crypto]==2.10.1

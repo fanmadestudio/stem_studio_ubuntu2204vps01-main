@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { bindSupabaseAuthListener, bootstrapSupabaseSession } from "../lib/auth";
+import { bindAuthListener, bootstrapSession } from "../lib/auth";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,11 +11,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    bindSupabaseAuthListener();
+    bindAuthListener();
 
     async function checkSession() {
       const isLoginRoute = pathname === "/login";
-      const session = await bootstrapSupabaseSession();
+      const session = await bootstrapSession();
       const validSession = Boolean(session?.access_token);
 
       if (!active) return;

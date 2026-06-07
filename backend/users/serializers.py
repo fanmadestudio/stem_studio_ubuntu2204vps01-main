@@ -3,6 +3,11 @@ from rest_framework import serializers
 from users.models import User
 
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(trim_whitespace=False)
+
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

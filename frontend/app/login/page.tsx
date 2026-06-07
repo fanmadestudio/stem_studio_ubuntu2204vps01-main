@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../lib/api";
-import { signInWithSupabase, signOutFromSupabase } from "../lib/auth";
+import { signIn, signOut } from "../lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,16 +23,17 @@ export default function LoginPage() {
 
     try {
       setSubmitting(true);
-      await signInWithSupabase(trimmedEmail, password);
+      await signIn(trimmedEmail, password);
       const profile = await apiFetch<{ first_name: string; last_name: string; email: string; role: "admin" | "staff" | "client" }>("/api/v1/auth/profile/");
       const displayName = `${profile.first_name} ${profile.last_name}`.trim() || profile.email;
       localStorage.setItem("user_name", displayName);
       localStorage.setItem("name", displayName);
+      localStorage.setItem("studio_name", displayName);
       setError("");
       router.replace("/");
-    } catch {
-      await signOutFromSupabase();
-      setError("Login failed. Check Supabase account and make sure it matches an existing app user role.");
+    } catch (error) {
+      await signOut();
+      setError(error instanceof Error ? error.message : "Login failed. Check your account credentials.");
     } finally {
       setSubmitting(false);
     }

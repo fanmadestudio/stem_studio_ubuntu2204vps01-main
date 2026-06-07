@@ -32,10 +32,9 @@ def _looks_like_placeholder(value: str | None) -> bool:
     return any(
         marker in normalized
         for marker in (
-            "your-project-ref",
             "replace-with",
             "your-password",
-            "your-supabase-db-password",
+            "change-me",
         )
     )
 
@@ -50,20 +49,13 @@ def _validate_database_env() -> None:
 
     if not ENV_PATH.exists() and not database_url and not any(split_values.values()):
         raise ImproperlyConfigured(
-            "Missing backend/.env. Copy backend/.env.example to backend/.env and fill in your Supabase database credentials."
+            "Missing backend/.env. Copy backend/.env.example to backend/.env and fill in your PostgreSQL settings."
         )
 
     if _looks_like_placeholder(database_url) or any(_looks_like_placeholder(value) for value in split_values.values()):
         raise ImproperlyConfigured(
-            "Supabase database settings still contain example placeholder values. Update backend/.env with your real project ref, database password, and host."
+            "Database settings still contain example placeholder values. Update backend/.env with your real PostgreSQL credentials."
         )
-
-
-def _validate_supabase_auth_env() -> None:
-    missing = [key for key in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY") if not os.getenv(key, "").strip()]
-    if missing:
-        raise ImproperlyConfigured(f"Missing Supabase Auth settings in backend/.env: {', '.join(missing)}")
-
 
 def _database_config_from_url(database_url: str) -> dict[str, object]:
     parsed = urlparse(database_url)
@@ -81,9 +73,9 @@ def _database_config_from_url(database_url: str) -> dict[str, object]:
 
     return {
         "ENGINE": "config.db.backends.postgresql",
-        "NAME": parsed.path.lstrip("/") or os.getenv("DB_NAME", "postgres"),
-        "USER": parsed.username or os.getenv("DB_USER", "postgres"),
-        "PASSWORD": parsed.password or os.getenv("DB_PASSWORD", "postgres"),
+        "NAME": parsed.path.lstrip("/") or os.getenv("DB_NAME", "stem_studio"),
+        "USER": parsed.username or os.getenv("DB_USER", "stemstudio"),
+        "PASSWORD": parsed.password or os.getenv("DB_PASSWORD", ""),
         "HOST": parsed.hostname or os.getenv("DB_HOST", "127.0.0.1"),
         "PORT": str(parsed.port or os.getenv("DB_PORT", "5432")),
         "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
@@ -94,13 +86,10 @@ def _database_config_from_url(database_url: str) -> dict[str, object]:
 
 _load_env_file()
 _validate_database_env()
-_validate_supabase_auth_env()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
-SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()
 
 AUTH_USER_MODEL = "users.User"
 
@@ -113,6 +102,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "rest_framework.authtoken",
     "users",
     "clients",
     "resources",
@@ -158,14 +148,14 @@ if db_engine == "django.db.backends.postgresql":
     db_engine = "config.db.backends.postgresql"
 elif db_engine != "config.db.backends.postgresql":
     raise ImproperlyConfigured(
-        "Only PostgreSQL-compatible backends are supported. Configure Supabase using PostgreSQL connection settings."
+        "Only PostgreSQL-compatible backends are supported."
     )
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
     database_settings = _database_config_from_url(database_url)
 else:
-    db_name = os.getenv("DB_NAME", "studio_recording")
+    db_name = os.getenv("DB_NAME", "stem_studio")
     db_options = {}
     if "postgresql" in db_engine:
         db_options = {
@@ -179,11 +169,11 @@ else:
     database_settings = {
         "ENGINE": db_engine,
         "NAME": db_name,
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
+        "USER": os.getenv("DB_USER", "stemstudio"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
         "HOST": os.getenv("DB_HOST", "127.0.0.1"),
         "PORT": os.getenv("DB_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "300")),
         "CONN_HEALTH_CHECKS": os.getenv("DB_CONN_HEALTH_CHECKS", "1") == "1",
         "OPTIONS": db_options,
     }
@@ -197,16 +187,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+default_authentication_classes = [
+    "users.auth.DjangoBearerTokenAuthentication",
+    "rest_framework.authentication.SessionAuthentication",
+]
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "users.supabase_auth.SupabaseJWTAuthentication",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": tuple(default_authentication_classes),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
 
-# Keep Django sessions aligned with JWT lifetime.
+# Keep browser sessions short for shared-workstation use.
 SESSION_COOKIE_AGE = 30 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
@@ -216,7 +209,7 @@ CORS_ALLOWED_ORIGINS = _env_list(
 )
 CORS_ALLOW_ALL_ORIGINS = os.getenv("DJANGO_CORS_ALLOW_ALL_ORIGINS", "0") == "1"
 if DEBUG and not CORS_ALLOWED_ORIGINS and not CORS_ALLOW_ALL_ORIGINS:
-    # In ephemeral dev platforms (e.g. CodeSandbox), frontend origins are dynamic.
+    # Local preview environments can use dynamic frontend origins during development.
     CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = _env_list(

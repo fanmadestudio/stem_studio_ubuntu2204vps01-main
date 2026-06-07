@@ -9,7 +9,7 @@ import { SmartInsightsBox } from "./components/smart-insights-box";
 import { SystemHealthCard } from "./components/system-health-card";
 import { useTheme } from "./components/theme-provider";
 import { apiFetchList, getApiBase } from "./lib/api";
-import { bootstrapSupabaseSession, signOutFromSupabase } from "./lib/auth";
+import { bootstrapSession, signOut } from "./lib/auth";
 type ApiClient = { id: number; first_name: string; last_name: string };
 type ApiEngineer = { id: number; name: string; role: "engineer" | "staff"; is_available: boolean };
 type ApiRoom = { id: number; name: string };
@@ -43,7 +43,7 @@ export default function Home() {
   const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
 
   const logout = useCallback(() => {
-    void signOutFromSupabase().finally(() => {
+    void signOut().finally(() => {
       setAuthName("Not signed in");
       router.replace("/login");
     });
@@ -52,13 +52,13 @@ export default function Home() {
   useEffect(() => {
     let active = true;
     async function loadSession() {
-      const session = await bootstrapSupabaseSession();
+      await bootstrapSession();
       if (!active) return;
       const displayName =
         localStorage.getItem("user_name") ??
         localStorage.getItem("username") ??
         localStorage.getItem("name") ??
-        session?.user.email ??
+        localStorage.getItem("studio_name") ??
         "Not signed in";
       setAuthName(displayName);
     }

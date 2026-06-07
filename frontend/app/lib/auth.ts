@@ -1,95 +1,71 @@
 "use client";
 
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { getApiBase } from "./api";
 
 const AUTH_NAME_KEY = "studio_name";
 const AUTH_EXPIRY_KEY = "auth_expires_at";
+const ACCESS_TOKEN_KEY = "access";
 
-let browserClient: SupabaseClient | null = null;
-let authSubscriptionBound = false;
+type LocalSession = {
+  access_token: string;
+};
 
-function requireEnv(name: string, value: string | undefined): string {
-  if (!value) {
-    throw new Error(`Missing ${name}.`);
-  }
-  return value;
-}
-
-export function getSupabaseBrowserClient(): SupabaseClient {
-  if (browserClient) return browserClient;
-
-  browserClient = createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
-    requireEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
-  );
-  return browserClient;
-}
-
-export function syncLegacySessionStorage(session: Session | null): void {
+function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
-
-  if (!session) {
-    localStorage.removeItem(AUTH_NAME_KEY);
-    localStorage.removeItem(AUTH_EXPIRY_KEY);
-    localStorage.removeItem("user_name");
-    localStorage.removeItem("username");
-    localStorage.removeItem("name");
-    localStorage.removeItem("access");
-    localStorage.removeItem("user");
-    return;
-  }
-
-  const displayName =
-    session.user.user_metadata?.name ||
-    [session.user.user_metadata?.first_name, session.user.user_metadata?.last_name].filter(Boolean).join(" ").trim() ||
-    session.user.email ||
-    "Signed in user";
-
-  localStorage.setItem("access", session.access_token);
-  localStorage.setItem(AUTH_NAME_KEY, displayName);
-  localStorage.setItem("user_name", displayName);
-  localStorage.setItem("name", displayName);
-  localStorage.setItem(AUTH_EXPIRY_KEY, String(new Date(session.expires_at ? session.expires_at * 1000 : Date.now()).getTime()));
+  localStorage.removeItem(AUTH_NAME_KEY);
+  localStorage.removeItem(AUTH_EXPIRY_KEY);
+  localStorage.removeItem("user_name");
+  localStorage.removeItem("username");
+  localStorage.removeItem("name");
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem("user");
 }
 
-export async function bootstrapSupabaseSession(): Promise<Session | null> {
-  const supabase = getSupabaseBrowserClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  syncLegacySessionStorage(session);
-  return session;
+function storeSession(token: string, email: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  localStorage.setItem(AUTH_NAME_KEY, email);
+  localStorage.setItem("user_name", email);
+  localStorage.setItem("name", email);
+  localStorage.setItem(AUTH_EXPIRY_KEY, String(Date.now() + 30 * 60 * 1000));
 }
 
-export function bindSupabaseAuthListener(): void {
-  if (authSubscriptionBound) return;
-  authSubscriptionBound = true;
-  const supabase = getSupabaseBrowserClient();
-  supabase.auth.onAuthStateChange((_event, session) => {
-    syncLegacySessionStorage(session);
+export async function bootstrapSession(): Promise<LocalSession | null> {
+  if (typeof window === "undefined") return null;
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  return token ? { access_token: token } : null;
+}
+
+export function bindAuthListener(): void {
+  // Local token auth does not require an external auth-state subscription.
+}
+
+export async function signIn(email: string, password: string): Promise<LocalSession> {
+  const response = await fetch(`${getApiBase()}/api/v1/auth/login/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
-}
 
-export async function signInWithSupabase(email: string, password: string): Promise<Session> {
-  const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.session) {
-    throw error ?? new Error("Supabase sign-in failed.");
+  if (!response.ok) {
+    const text = await response.text();
+    try {
+      const payload = JSON.parse(text) as { detail?: string };
+      throw new Error(payload.detail || "Sign-in failed.");
+    } catch {
+      throw new Error(text || "Sign-in failed.");
+    }
   }
-  syncLegacySessionStorage(data.session);
-  return data.session;
-}
 
-export async function signOutFromSupabase(): Promise<void> {
-  const supabase = getSupabaseBrowserClient();
-  await supabase.auth.signOut();
-  syncLegacySessionStorage(null);
-}
-
-export async function updateSupabasePassword(password: string): Promise<void> {
-  const supabase = getSupabaseBrowserClient();
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) {
-    throw error;
+  const data = (await response.json()) as { token?: string; user?: { email?: string } };
+  if (!data.token) {
+    throw new Error("Sign-in failed.");
   }
+
+  storeSession(data.token, data.user?.email || email);
+  return { access_token: data.token };
+}
+
+export async function signOut(): Promise<void> {
+  clearStoredAuth();
 }
