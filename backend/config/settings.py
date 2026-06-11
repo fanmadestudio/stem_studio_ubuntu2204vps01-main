@@ -6,6 +6,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 
 
+def _resolve_db_name(value: str) -> str:
+    if value == ":memory:":
+        return value
+
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = BASE_DIR / path
+    return str(path.resolve())
+
+
 def _load_env_file() -> None:
     if not ENV_PATH.exists():
         return
@@ -122,9 +132,7 @@ if db_engine != "config.db.backends.sqlcipher":
         "Only the SQLCipher backend is supported."
     )
 
-db_name = os.getenv("DB_NAME", str(BASE_DIR / "stem_studio.sqlite3"))
-if db_name != ":memory:":
-    db_name = str(Path(db_name).expanduser())
+db_name = _resolve_db_name(os.getenv("DB_NAME", "stem_studio.sqlite3"))
 
 database_settings = {
     "ENGINE": db_engine,

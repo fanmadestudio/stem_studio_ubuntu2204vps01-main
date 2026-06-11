@@ -1,3 +1,4 @@
+from pathlib import Path
 from itertools import tee
 from collections.abc import Mapping
 
@@ -26,6 +27,9 @@ class DatabaseWrapper(SQLiteDatabaseWrapper):
         return conn_params
 
     def get_new_connection(self, conn_params):
+        db_name = conn_params.get("database")
+        if db_name and db_name != ":memory:":
+            Path(db_name).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
         conn = self.Database.connect(**conn_params)
         self._apply_sqlcipher_pragmas(conn)
         return conn

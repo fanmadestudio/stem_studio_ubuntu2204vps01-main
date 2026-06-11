@@ -134,6 +134,8 @@ DB_PASSWORD=your-strong-db-password
 DB_TIMEOUT=10
 ```
 
+`DB_NAME` can be relative. Relative paths are resolved under `backend/`, so `stem_studio.sqlite3` becomes `backend/stem_studio.sqlite3`.
+
 ### Frontend `.env.local`
 
 Optional, but recommended:
