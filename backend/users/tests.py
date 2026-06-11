@@ -1,4 +1,6 @@
+from django.core.management import call_command
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
@@ -33,3 +35,22 @@ class DjangoAuthTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["email"], self.user.email)
+
+
+class SeedCredentialsCommandTests(TestCase):
+    def test_seed_credentials_creates_admin_and_staff_users(self):
+        call_command("seed_credentials")
+
+        user_model = get_user_model()
+        admin = user_model.objects.get(email="admin@stemstudio.com")
+        staff = user_model.objects.get(email="staff@stemstudio.com")
+
+        self.assertEqual(admin.role, "admin")
+        self.assertTrue(admin.is_staff)
+        self.assertTrue(admin.is_superuser)
+        self.assertTrue(admin.check_password("4dm1nst3mstvd10"))
+
+        self.assertEqual(staff.role, "staff")
+        self.assertTrue(staff.is_staff)
+        self.assertFalse(staff.is_superuser)
+        self.assertTrue(staff.check_password("St4ffst3mstvd10"))
