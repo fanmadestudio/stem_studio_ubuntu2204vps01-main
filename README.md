@@ -162,6 +162,8 @@ If `NEXT_PUBLIC_API_BASE_URL` is missing, the frontend falls back to `http://<cu
 
 Run:
 
+Fresh database migrations seed these default Django users automatically, and you can re-run the command below any time to reset them:
+
 ```powershell
 cd backend
 py -3 manage.py seed_credentials
