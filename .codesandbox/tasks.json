@@ -1,0 +1,38 @@
+{
+  "setupTasks": [
+    {
+      "name": "Setup Backend venv",
+      "command": "cd backend && python3 -m venv venv"
+    },
+    {
+      "name": "Install Backend dependencies",
+      "command": "cd backend && ./venv/bin/pip install -r requirements.txt"
+    },
+    {
+      "name": "Run Backend migrations",
+      "command": "cd backend && ./venv/bin/python manage.py migrate"
+    },
+    {
+      "name": "Install Frontend dependencies",
+      "command": "cd frontend && npm install"
+    }
+  ],
+  "tasks": {
+    "backend": {
+      "name": "Start Backend Server",
+      "command": "cd backend && ./venv/bin/python manage.py runserver 0.0.0.0:8000",
+      "runAtStart": true,
+      "preview": {
+        "port": 8000
+      }
+    },
+    "frontend": {
+      "name": "Start Frontend Server",
+      "command": "cd frontend && npm run dev",
+      "runAtStart": true,
+      "preview": {
+        "port": 3000
+      }
+    }
+  }
+}
