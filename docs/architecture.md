@@ -12,10 +12,10 @@ Browser
   -> Django login
   -> Bearer token in API requests
   -> Django REST API
-  -> Local PostgreSQL
+  -> Local SQLCipher database
 ```
 
-The frontend is a client-rendered operations dashboard. The backend is the system of record for domain data and business rules. Django owns authentication, role mapping, and API behavior, while PostgreSQL stores application data locally on the target machine or VPS.
+The frontend is a client-rendered operations dashboard. The backend is the system of record for domain data and business rules. Django owns authentication, role mapping, and API behavior, while SQLCipher stores encrypted application data locally on the target machine or VPS.
 
 ## Backend Design
 
@@ -25,7 +25,7 @@ The frontend is a client-rendered operations dashboard. The backend is the syste
 - Global URL prefix: `/api/v1/`
 - Default authentication: `users.auth.DjangoBearerTokenAuthentication`
 - Default permission: authenticated users only
-- Database backend: PostgreSQL only
+- Database backend: SQLCipher only
 
 ### Domain apps
 
@@ -36,7 +36,7 @@ Responsibilities:
 - custom `User` model using email as the login identifier
 - `role` values: `admin`, `staff`, `client`
 - profile read/update endpoint
-- seed and startup helper management commands
+- startup helper management commands
 
 Key files:
 

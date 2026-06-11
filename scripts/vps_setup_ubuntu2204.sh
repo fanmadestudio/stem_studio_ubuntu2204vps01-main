@@ -9,14 +9,10 @@ APP_USER="${APP_USER:-$USER}"
 APP_GROUP="${APP_GROUP:-$USER}"
 PUBLIC_HOST="${PUBLIC_HOST:-127.0.0.1}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
-DB_ENGINE="${DB_ENGINE:-django.db.backends.postgresql}"
-DB_NAME="${DB_NAME:-stem_studio}"
-DB_USER="${DB_USER:-stemstudio}"
+DB_ENGINE="${DB_ENGINE:-config.db.backends.sqlcipher}"
+DB_NAME="${DB_NAME:-$BACKEND_DIR/stem_studio.sqlite3}"
 DB_PASSWORD="${DB_PASSWORD:-change-me-strong-password}"
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-5432}"
-DB_SSLMODE="${DB_SSLMODE:-prefer}"
-DB_CONNECT_TIMEOUT="${DB_CONNECT_TIMEOUT:-10}"
+DB_TIMEOUT="${DB_TIMEOUT:-10}"
 
 if ! command -v sudo >/dev/null 2>&1; then
   echo "sudo is required on Ubuntu VPS"
@@ -24,7 +20,7 @@ if ! command -v sudo >/dev/null 2>&1; then
 fi
 
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip nginx curl ca-certificates gnupg postgresql postgresql-contrib libpq-dev
+sudo apt install -y python3 python3-venv python3-pip nginx curl ca-certificates gnupg
 
 if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE '^v(20|21|22)\.'; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -35,31 +31,11 @@ if [ ! -d "$BACKEND_DIR/.venv" ]; then
   python3 -m venv "$BACKEND_DIR/.venv"
 fi
 
-sudo systemctl enable postgresql
-sudo systemctl restart postgresql
-
-DB_PASSWORD_ESCAPED="${DB_PASSWORD//\'/\'\'}"
-sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_USER}') THEN
-    CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD_ESCAPED}';
-  ELSE
-    ALTER ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD_ESCAPED}';
-  END IF;
-END
-\$\$;
-SQL
-
-if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'" | grep -q 1; then
-  sudo -u postgres createdb -O "$DB_USER" "$DB_NAME"
-else
-  sudo -u postgres psql -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
-fi
-
 source "$BACKEND_DIR/.venv/bin/activate"
 pip install --upgrade pip
 pip install -r "$BACKEND_DIR/requirements.txt"
+
+mkdir -p "$(dirname "$DB_NAME")"
 
 cat > "$BACKEND_DIR/.env" <<EOF
 DJANGO_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')
@@ -69,13 +45,8 @@ DJANGO_CORS_ALLOWED_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT}
 DJANGO_CSRF_TRUSTED_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT}
 DB_ENGINE=${DB_ENGINE}
 DB_NAME=${DB_NAME}
-DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
-DB_HOST=${DB_HOST}
-DB_PORT=${DB_PORT}
-DB_SSLMODE=${DB_SSLMODE}
-DB_CONN_MAX_AGE=120
-DB_CONNECT_TIMEOUT=${DB_CONNECT_TIMEOUT}
+DB_TIMEOUT=${DB_TIMEOUT}
 EOF
 
 cd "$BACKEND_DIR"

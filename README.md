@@ -1,6 +1,6 @@
 # STEM Studio
 
-STEM Studio is a monorepo for a recording studio management system. It combines a Django REST API, a Next.js dashboard, Django token authentication, and local PostgreSQL storage for handling clients, bookings, studio resources, billing, and operational reporting.
+STEM Studio is a monorepo for a recording studio management system. It combines a Django REST API, a Next.js dashboard, Django token authentication, and a local SQLCipher-encrypted database for handling clients, bookings, studio resources, billing, and operational reporting.
 
 ## What This Project Does
 
@@ -15,7 +15,7 @@ STEM Studio is a monorepo for a recording studio management system. It combines 
 
 - Backend: Django 4.2, Django REST Framework
 - Frontend: Next.js 15 App Router, React 19, TypeScript
-- Database: PostgreSQL
+- Database: SQLCipher
 - Authentication: Django token auth
 - Deployment helpers: systemd service files, Ubuntu setup script
 
@@ -75,7 +75,7 @@ Django REST API (/api/v1/)
     |
     | validates bearer token and maps user role
     v
-PostgreSQL
+SQLCipher
 ```
 
 ### Auth flow
@@ -93,8 +93,7 @@ PostgreSQL
 - Python 3.11+ recommended
 - Node.js 20+ recommended
 - npm
-- PostgreSQL 14+ recommended
-- PostgreSQL must be available locally or on the target server
+- No separate database server is required
 
 ### 1. Backend setup
 
@@ -103,7 +102,6 @@ cd backend
 Copy-Item .env.example .env
 py -3 -m pip install -r requirements.txt
 py -3 manage.py migrate
-py -3 manage.py seed_credentials
 py -3 manage.py runserver 0.0.0.0:8000
 ```
 
@@ -129,23 +127,11 @@ Required values:
 DJANGO_SECRET_KEY=replace-with-strong-secret
 ```
 
-Use either a single PostgreSQL connection string:
-
 ```env
-DATABASE_URL=postgresql://stemstudio:your-password@127.0.0.1:5432/stem_studio?sslmode=prefer
-```
-
-Or split PostgreSQL values:
-
-```env
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=stem_studio
-DB_USER=stemstudio
+DB_ENGINE=config.db.backends.sqlcipher
+DB_NAME=stem_studio.sqlite3
 DB_PASSWORD=your-strong-db-password
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_SSLMODE=prefer
-DB_CONNECT_TIMEOUT=10
+DB_TIMEOUT=10
 ```
 
 ### Frontend `.env.local`
@@ -160,21 +146,12 @@ If `NEXT_PUBLIC_API_BASE_URL` is missing, the frontend falls back to `http://<cu
 
 ## Seeded Accounts
 
-Run:
-
-Fresh database migrations seed these default Django users automatically, and you can re-run the command below any time to reset them:
+Fresh migrations no longer auto-create demo data or default users. Create an admin account explicitly when you need one:
 
 ```powershell
 cd backend
-py -3 manage.py seed_credentials
+py -3 manage.py createsuperuser
 ```
-
-Default Django users:
-
-- `admin@stemstudio.com / 4dm1nst3mstvd10`
-- `staff@stemstudio.com / St4ffst3mstvd10`
-
-These accounts can sign in directly through the Django login form.
 
 ## API Summary
 
@@ -234,16 +211,13 @@ Example:
 cd stem_studio_-main
 chmod +x scripts/vps_setup_ubuntu2204.sh
 PUBLIC_HOST=<VPS_IP> \
-DB_NAME=stem_studio \
-DB_USER=stemstudio \
+DB_NAME=/opt/stem-studio/backend/stem_studio.sqlite3 \
 DB_PASSWORD='<STRONG_DB_PASSWORD>' \
-DB_HOST=127.0.0.1 \
-DB_PORT=5432 \
-DB_SSLMODE=prefer \
+DB_TIMEOUT=10 \
 bash scripts/vps_setup_ubuntu2204.sh
 ```
 
-The setup script installs PostgreSQL on the VPS, creates the database and login role, and configures Django to connect over `127.0.0.1` with password authentication that works with `psycopg` and Django.
+The setup script provisions Python and Node, writes the backend `.env`, and lets Django create the encrypted SQLCipher database file on first migrate.
 
 ## Known Gaps
 
