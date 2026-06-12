@@ -82,7 +82,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-db_engine = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
+db_engine = os.getenv("DB_ENGINE", "config.db.backends.sqlcipher")
 db_name = os.getenv("DB_NAME", "db.sqlite3")
 if db_engine in {"config.db.backends.sqlcipher", "django.db.backends.sqlite3"}:
     sqlite_path = Path(db_name)

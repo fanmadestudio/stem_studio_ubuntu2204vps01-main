@@ -8,8 +8,8 @@ Monorepo aplikasi manajemen studio recording.
 - `frontend/`: Next.js 15 (App Router) + React 19 + TypeScript
 - API base path: `/api/v1/`
 - Database:
-  - Default development environment: SQLite tanpa enkripsi (`DB_ENGINE=django.db.backends.sqlite3`)
-  - Opsional SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
+  - Default environment: SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
+  - Didukung juga SQLite tanpa enkripsi (`DB_ENGINE=django.db.backends.sqlite3`)
 
 ## Fitur yang Sudah Diimplementasikan
 
@@ -63,27 +63,13 @@ py -3 manage.py seed_credentials
 py -3 manage.py runserver 0.0.0.0:8000
 ```
 
-Untuk SQLCipher, install dependency tambahan:
-
-```powershell
-py -3 -m pip install -r requirements-sqlcipher.txt
-```
-
-Contoh `.env` backend SQLite sudah ada di `backend/.env.example`.
+Contoh `.env` backend SQLCipher sudah ada di `backend/.env.example`.
 
 Jika ingin SQLite lokal tanpa enkripsi:
 
 ```env
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=db.sqlite3
-```
-
-Jika ingin SQLCipher:
-
-```env
-DB_ENGINE=config.db.backends.sqlcipher
-DB_NAME=db.sqlite3
-SQLCIPHER_KEY=replace-with-strong-sqlcipher-key
 ```
 
 ### 2) Frontend (Next.js)
