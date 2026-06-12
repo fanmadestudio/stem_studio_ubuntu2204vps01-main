@@ -23,10 +23,6 @@
     {
       "name": "Install Frontend dependencies",
       "command": "cd frontend && npm install"
-    },
-	{
-      "name": "Install Frontend Nextjs",
-      "command": "cd frontend && npm install nextjs"
     }
   ],
   "tasks": {
