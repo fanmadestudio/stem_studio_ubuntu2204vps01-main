@@ -1,7 +1,7 @@
 ﻿# TECHNICAL_DOCUMENTATION
 
 ## Current Project Condition Summary
-- The codebase is functional and already organized by bounded Django apps and Next.js routes.
+- The codebase is functional and already organized by bounded Django apps and Vite React routes.
 - Core business logic exists and is preserved.
 - Main maintainability gaps were code duplication (frontend helpers), dense aggregation/business rules inside endpoint files, and incomplete technical mapping docs.
 

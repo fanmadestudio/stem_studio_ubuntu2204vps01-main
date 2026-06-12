@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "../lib/router";
 
 const AUTH_NAME_KEY = "studio_name";
 const AUTH_EXPIRY_KEY = "auth_expires_at";
