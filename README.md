@@ -147,13 +147,29 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 If `NEXT_PUBLIC_API_BASE_URL` is missing, the frontend falls back to a same-host `:8000` origin with the current page protocol. In CodeSandbox previews, it also maps frontend hosts like `*-3000.csb.app` to backend hosts like `*-8000.csb.app`.
 For hosted environments, set `NEXT_PUBLIC_API_BASE_URL` explicitly to the public backend origin. This avoids mixed-content failures when the frontend is served over HTTPS.
 
-## Seeded Accounts
+## Seeded Data
 
 Fresh migrations no longer auto-create demo data or default users. Create an admin account explicitly when you need one:
 
 ```powershell
 cd backend
 py -3 manage.py createsuperuser
+```
+
+If you want sample operational data inside the SQLCipher database, seed it explicitly:
+
+```powershell
+cd backend
+py -3 manage.py seed_dummy_data
+```
+
+This command creates a small demo dataset across users, clients, rooms, engineers, equipment, bookings, invoices, payments, and notifications.
+
+To remove that demo dataset again:
+
+```powershell
+cd backend
+py -3 manage.py reset_dummy_data
 ```
 
 ## API Summary
