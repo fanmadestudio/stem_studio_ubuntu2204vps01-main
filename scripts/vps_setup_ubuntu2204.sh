@@ -7,10 +7,7 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 
 APP_USER="${APP_USER:-$USER}"
 APP_GROUP="${APP_GROUP:-$USER}"
-POSTGRES_DB="${POSTGRES_DB:-stem_studio}"
-POSTGRES_USER="${POSTGRES_USER:-stem_user}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change-me-strong-password}"
-POSTGRES_PASSWORD_SQL="${POSTGRES_PASSWORD//\'/\'\'}"
+SQLCIPHER_KEY="${SQLCIPHER_KEY:-$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')}"
 PUBLIC_HOST="${PUBLIC_HOST:-127.0.0.1}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 
@@ -20,7 +17,7 @@ if ! command -v sudo >/dev/null 2>&1; then
 fi
 
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip postgresql postgresql-contrib nginx curl ca-certificates gnupg
+sudo apt install -y python3 python3-venv python3-pip sqlcipher libsqlcipher-dev nginx curl ca-certificates gnupg
 
 if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE '^v(20|21|22)\.'; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -33,12 +30,7 @@ fi
 
 source "$BACKEND_DIR/.venv/bin/activate"
 pip install --upgrade pip
-pip install -r "$BACKEND_DIR/requirements.txt"
-
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD_SQL}';"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER};"
+pip install -r "$BACKEND_DIR/requirements-sqlcipher.txt"
 
 cat > "$BACKEND_DIR/.env" <<EOF
 DJANGO_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')
@@ -46,15 +38,10 @@ DJANGO_DEBUG=0
 DJANGO_ALLOWED_HOSTS=${PUBLIC_HOST},localhost,127.0.0.1
 DJANGO_CORS_ALLOWED_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT}
 DJANGO_CSRF_TRUSTED_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT}
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=${POSTGRES_DB}
-DB_USER=${POSTGRES_USER}
-DB_PASSWORD=${POSTGRES_PASSWORD}
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_SSLMODE=disable
+DB_ENGINE=config.db.backends.sqlcipher
+DB_NAME=db.sqlite3
+SQLCIPHER_KEY=${SQLCIPHER_KEY}
 DB_CONN_MAX_AGE=120
-DB_CONNECT_TIMEOUT=10
 EOF
 
 cd "$BACKEND_DIR"

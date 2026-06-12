@@ -128,7 +128,7 @@ Frontend -> Backend API -> Database
 
 - Frontend: Next.js
 - Backend: Django
-- Database: PostgreSQL Neon 
+- Database: SQLCipher
 
 ### Deployment
 
@@ -225,7 +225,7 @@ Frontend -> Backend API -> Database
 
 ### Database
 
-- PostgreSQL Neon
+- SQLCipher
 
 ### Deployment
 
@@ -239,4 +239,3 @@ Frontend -> Backend API -> Database
 - Optimized for low resource
 - Avoid heavy dependencies
 - Use simple background jobs for notifications
-

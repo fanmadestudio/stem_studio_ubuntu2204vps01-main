@@ -83,9 +83,9 @@ After:
 Benefit:
 - Naming consistency, less copy-paste risk, simpler maintenance.
 
-## Database / Neon Configuration Review
-- Neon PostgreSQL env support is correctly implemented in `backend/config/settings.py`.
-- `DB_SSLMODE=require` is supported and aligned with Neon requirements.
+## Database Configuration Review
+- SQLite is the default development database backend through `django.db.backends.sqlite3`; SQLCipher is available as an opt-in backend through `config.db.backends.sqlcipher`.
+- `SQLCIPHER_KEY` is used to open the encrypted local database file.
 - Migrations remain the source of truth; no schema mutation performed in this refactor.
 
 ## API Communication Pattern Review (Frontend -> Django)

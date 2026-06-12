@@ -8,8 +8,8 @@ Monorepo aplikasi manajemen studio recording.
 - `frontend/`: Next.js 15 (App Router) + React 19 + TypeScript
 - API base path: `/api/v1/`
 - Database:
-  - Default environment: PostgreSQL (`DB_ENGINE=django.db.backends.postgresql`)
-  - Didukung juga SQLite (`DB_ENGINE=django.db.backends.sqlite3`)
+  - Default development environment: SQLite tanpa enkripsi (`DB_ENGINE=django.db.backends.sqlite3`)
+  - Opsional SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
 
 ## Fitur yang Sudah Diimplementasikan
 
@@ -63,13 +63,27 @@ py -3 manage.py seed_credentials
 py -3 manage.py runserver 0.0.0.0:8000
 ```
 
-Contoh `.env` backend (PostgreSQL) sudah ada di `backend/.env.example`.
+Untuk SQLCipher, install dependency tambahan:
 
-Jika ingin SQLite lokal:
+```powershell
+py -3 -m pip install -r requirements-sqlcipher.txt
+```
+
+Contoh `.env` backend SQLite sudah ada di `backend/.env.example`.
+
+Jika ingin SQLite lokal tanpa enkripsi:
 
 ```env
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=db.sqlite3
+```
+
+Jika ingin SQLCipher:
+
+```env
+DB_ENGINE=config.db.backends.sqlcipher
+DB_NAME=db.sqlite3
+SQLCIPHER_KEY=replace-with-strong-sqlcipher-key
 ```
 
 ### 2) Frontend (Next.js)
@@ -126,7 +140,7 @@ py -3 manage.py seed_credentials
 cd stem_studio_codesanbox_sqlite-main
 chmod +x scripts/vps_setup_ubuntu2204.sh
 PUBLIC_HOST=<VPS_IP> \
-POSTGRES_PASSWORD='<STRONG_PASSWORD>' \
+SQLCIPHER_KEY='<STRONG_SQLCIPHER_KEY>' \
 bash scripts/vps_setup_ubuntu2204.sh
 ```
 

@@ -11,7 +11,7 @@
 - [x] App boundaries reviewed (`users`, `clients`, `resources`, `bookings`, `billing`, `notifications`, `analytics`)
 - [x] Complex logic moved to service/helper where appropriate
 - [x] Serializer/view responsibilities improved (billing + analytics)
-- [x] Neon env variable handling reviewed
+- [x] SQLCipher env variable handling reviewed
 - [x] Model relationships and migration alignment reviewed
 - [ ] Add dedicated tests for service functions (`billing/services.py`, `analytics/services.py`)
 - [ ] Introduce consistent service modules per app (future gradual rollout)
@@ -25,7 +25,7 @@
 - [ ] Replace `invoices` mock seed with real API-based billing flow
 - [ ] Consolidate auth session keys into single source of truth
 
-## Database (Neon PostgreSQL)
+## Database (SQLCipher)
 - [x] Table + relationship mapping documented
 - [x] Non-destructive posture maintained
 - [x] Data flow mapping documented
