@@ -1,6 +1,24 @@
+function normalizeConfiguredBase(configuredBase: string): string {
+  const trimmedBase = configuredBase.replace(/\/+$/, "");
+
+  if (typeof window === "undefined") {
+    return trimmedBase;
+  }
+
+  const currentUrl = new URL(window.location.href);
+  const configuredUrl = new URL(trimmedBase, currentUrl.origin);
+
+  // Browsers block HTTPS pages from calling insecure HTTP APIs.
+  if (currentUrl.protocol === "https:" && configuredUrl.protocol === "http:") {
+    configuredUrl.protocol = "https:";
+  }
+
+  return configuredUrl.toString().replace(/\/+$/, "");
+}
+
 export function getApiBase(): string {
   const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-  if (configuredBase) return configuredBase.replace(/\/+$/, "");
+  if (configuredBase) return normalizeConfiguredBase(configuredBase);
 
   if (typeof window === "undefined") {
     return "http://127.0.0.1:8000";

@@ -174,6 +174,9 @@ CORS_ALLOWED_ORIGINS = _env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000",
 )
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*-3000\.csb\.app$",
+]
 CORS_ALLOW_ALL_ORIGINS = os.getenv("DJANGO_CORS_ALLOW_ALL_ORIGINS", "0") == "1"
 if DEBUG and not CORS_ALLOWED_ORIGINS and not CORS_ALLOW_ALL_ORIGINS:
     # Local preview environments can use dynamic frontend origins during development.
@@ -183,6 +186,8 @@ CSRF_TRUSTED_ORIGINS = _env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000",
 )
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, "https://*.csb.app"]
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Jakarta"
