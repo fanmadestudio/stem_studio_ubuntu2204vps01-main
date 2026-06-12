@@ -82,36 +82,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-db_engine = os.getenv("DB_ENGINE", "django.db.backends.postgresql")
-if db_engine == "django.db.backends.postgresql":
-    db_engine = "config.db.backends.postgresql"
-
-db_name = os.getenv("DB_NAME", "studio_recording")
-if db_engine == "django.db.backends.sqlite3":
+db_engine = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
+db_name = os.getenv("DB_NAME", "db.sqlite3")
+if db_engine in {"config.db.backends.sqlcipher", "django.db.backends.sqlite3"}:
     sqlite_path = Path(db_name)
     db_name = str(sqlite_path if sqlite_path.is_absolute() else (BASE_DIR / sqlite_path).resolve())
-
-db_options = {}
-if "postgresql" in db_engine:
-    db_options = {
-        "sslmode": os.getenv("DB_SSLMODE", "prefer"),
-        "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
-    }
-    db_channel_binding = os.getenv("DB_CHANNEL_BINDING")
-    if db_channel_binding:
-        db_options["channel_binding"] = db_channel_binding
 
 DATABASES = {
     "default": {
         "ENGINE": db_engine,
         "NAME": db_name,
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "SQLCIPHER_KEY": os.getenv("SQLCIPHER_KEY", "dev-only-sqlcipher-key-change-me"),
         "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
         "CONN_HEALTH_CHECKS": os.getenv("DB_CONN_HEALTH_CHECKS", "1") == "1",
-        "OPTIONS": db_options,
+        "OPTIONS": {},
     }
 }
 
