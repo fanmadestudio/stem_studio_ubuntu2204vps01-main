@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { useLanguage } from "./language-provider";
+import { Link } from "../lib/router";
 
 export function Sidebar() {
   const { t } = useLanguage();

@@ -5,7 +5,7 @@ Monorepo aplikasi manajemen studio recording.
 ## Stack Implementasi
 
 - `backend/`: Django 4.2 + Django REST Framework + JWT (`simplejwt`)
-- `frontend/`: Next.js 15 (App Router) + React 19 + TypeScript
+- `frontend/`: Vite + React 19 + TypeScript
 - API base path: `/api/v1/`
 - Database:
   - Default environment: SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
@@ -26,7 +26,7 @@ Monorepo aplikasi manajemen studio recording.
 ## Struktur Folder
 
 - `backend/` Django project + apps + migrations
-- `frontend/` Next.js app
+- `frontend/` Vite React app
 - `deploy/systemd/` service unit backend dan frontend
 - `scripts/vps_setup_ubuntu2204.sh` setup VPS Ubuntu 22.04
 
@@ -72,7 +72,7 @@ DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=db.sqlite3
 ```
 
-### 2) Frontend (Next.js)
+### 2) Frontend (Vite + React)
 
 ```powershell
 cd frontend
@@ -83,7 +83,7 @@ npm run dev
 Opsional `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
 Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.

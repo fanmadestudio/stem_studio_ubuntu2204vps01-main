@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "./lib/router";
 import { Sidebar } from "./components/sidebar";
 import { KpiRow } from "./components/kpi-row";
 import { ExecutiveTrendPanel } from "./components/executive-trend-panel";

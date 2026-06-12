@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../../components/language-provider";
 import { Sidebar } from "../../components/sidebar";
 import { apiFetchPage } from "../../lib/api";
 import { formatIdr } from "../../lib/format";
+import { Link, useParams, useSearchParams } from "../../lib/router";
 import { getStatusClass } from "../../lib/status";
 
 type ApiInvoice = {

@@ -1,5 +1,5 @@
 export function getApiBase(): string {
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
   const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
   return `http://${host}:8000`;
 }

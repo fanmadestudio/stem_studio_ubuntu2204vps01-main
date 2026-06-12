@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiFetch } from "../lib/api";
+import { useRouter } from "../lib/router";
 
 const AUTH_NAME_KEY = "studio_name";
 const AUTH_EXPIRY_KEY = "auth_expires_at";
@@ -81,4 +81,3 @@ export default function LoginPage() {
     </main>
   );
 }
-
