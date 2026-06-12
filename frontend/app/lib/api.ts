@@ -1,7 +1,18 @@
 export function getApiBase(): string {
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
-  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  return `http://${host}:8000`;
+  const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (configuredBase) return configuredBase.replace(/\/+$/, "");
+
+  if (typeof window === "undefined") {
+    return "http://127.0.0.1:8000";
+  }
+
+  const { protocol, hostname } = window.location;
+
+  if (hostname.endsWith(".csb.app")) {
+    return `${protocol}//${hostname.replace(/-\d+\.csb\.app$/, "-8000.csb.app")}`;
+  }
+
+  return `${protocol}//${hostname}:8000`;
 }
 
 export function getAccessToken(): string | null {

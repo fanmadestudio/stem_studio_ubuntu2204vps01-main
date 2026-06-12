@@ -144,7 +144,8 @@ Optional, but recommended:
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-If `NEXT_PUBLIC_API_BASE_URL` is missing, the frontend falls back to `http://<current-host>:8000`.
+If `NEXT_PUBLIC_API_BASE_URL` is missing, the frontend falls back to a same-host `:8000` origin with the current page protocol. In CodeSandbox previews, it also maps frontend hosts like `*-3000.csb.app` to backend hosts like `*-8000.csb.app`.
+For hosted environments, set `NEXT_PUBLIC_API_BASE_URL` explicitly to the public backend origin. This avoids mixed-content failures when the frontend is served over HTTPS.
 
 ## Seeded Accounts
 
