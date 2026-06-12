@@ -23,6 +23,13 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ["-start_time"]
+        indexes = [
+            models.Index(fields=["start_time"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["room", "start_time"]),
+            models.Index(fields=["engineer", "start_time"]),
+            models.Index(fields=["client", "start_time"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.client_id} - {self.room.name} ({self.start_time} to {self.end_time})"

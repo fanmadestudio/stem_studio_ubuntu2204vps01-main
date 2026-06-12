@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useLanguage } from "../components/language-provider";
 import { Sidebar } from "../components/sidebar";
 import { apiFetch } from "../lib/api";
 
@@ -13,6 +14,7 @@ type Profile = {
 };
 
 export default function SettingsPage() {
+  const { language, setLanguage, t } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notice, setNotice] = useState("No changes yet.");
   const [form, setForm] = useState({
@@ -137,6 +139,17 @@ export default function SettingsPage() {
                 </tr>
               </tbody>
             </table>
+          </article>
+
+          <article className="card">
+            <h3>{t("settings.language")}</h3>
+            <p className="small">{t("settings.languageHelp")}</p>
+            <div style={{ marginTop: 10, maxWidth: 260 }}>
+              <select className="select" value={language} onChange={(e) => setLanguage(e.target.value as "en" | "id")}>
+                <option value="en">{t("settings.languageEnglish")}</option>
+                <option value="id">{t("settings.languageIndonesian")}</option>
+              </select>
+            </div>
           </article>
         </section>
       </main>

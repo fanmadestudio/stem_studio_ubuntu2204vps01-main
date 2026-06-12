@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useLanguage } from "../components/language-provider";
 import { Sidebar } from "../components/sidebar";
-import { apiFetch, apiFetchList } from "../lib/api";
+import { apiFetch, apiFetchPage } from "../lib/api";
 
 type ApiClient = {
   id: number;
@@ -30,8 +31,12 @@ function formatDateTime(iso: string): string {
 }
 
 export default function ClientsPage() {
+  const { t } = useLanguage();
   const [clients, setClients] = useState<ApiClient[]>([]);
   const [notice, setNotice] = useState("No new client input.");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const [clientForm, setClientForm] = useState({
     name: "",
     email: "",
@@ -41,14 +46,19 @@ export default function ClientsPage() {
   useEffect(() => {
     async function loadClients() {
       try {
-        const data = await apiFetchList<ApiClient>("/api/v1/clients/");
-        setClients(data);
+        const data = await apiFetchPage<ApiClient>(`/api/v1/clients/?page=${page}&page_size=${pageSize}`);
+        setClients(data.results);
+        setTotalPages(Math.max(1, Math.ceil(data.count / pageSize)));
       } catch {
         setNotice("Failed to load clients from API.");
       }
     }
     void loadClients();
-  }, []);
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const sortedClients = useMemo(() => [...clients].sort((a, b) => a.id - b.id), [clients]);
 
@@ -82,6 +92,55 @@ export default function ClientsPage() {
       setNotice(`Client ${clientCode(created.id)} created successfully.`);
     } catch (error) {
       setNotice(`Client rejected: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  async function editClient(client: ApiClient): Promise<void> {
+    const currentName = `${client.first_name} ${client.last_name}`.trim();
+    const nextName = window.prompt("Edit client name", currentName || client.user_email);
+    if (nextName === null) return;
+    const nextEmail = window.prompt("Edit client email", client.user_email);
+    if (nextEmail === null) return;
+    const nextPhone = window.prompt("Edit client phone", client.phone);
+    if (nextPhone === null) return;
+
+    const name = nextName.trim();
+    const email = nextEmail.trim();
+    const phone = nextPhone.trim();
+    if (!name || !email || !phone) {
+      setNotice("Client update rejected: name, email, and phone are required.");
+      return;
+    }
+
+    const [first_name, ...rest] = name.split(" ");
+    const last_name = rest.join(" ");
+
+    try {
+      const updated = await apiFetch<ApiClient>(`/api/v1/clients/${client.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          email,
+          phone
+        })
+      });
+      setClients((prev) => prev.map((item) => (item.id === client.id ? updated : item)));
+      setNotice(`Client ${clientCode(client.id)} updated.`);
+    } catch (error) {
+      setNotice(`Failed to update client ${clientCode(client.id)}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  async function deleteClient(client: ApiClient): Promise<void> {
+    const proceed = window.confirm(`Delete client ${clientCode(client.id)}?`);
+    if (!proceed) return;
+    try {
+      await apiFetch<unknown>(`/api/v1/clients/${client.id}/`, { method: "DELETE" });
+      setClients((prev) => prev.filter((item) => item.id !== client.id));
+      setNotice(`Client ${clientCode(client.id)} deleted.`);
+    } catch (error) {
+      setNotice(`Failed to delete client ${clientCode(client.id)}: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 
@@ -158,6 +217,7 @@ export default function ClientsPage() {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Last Activity</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,10 +228,45 @@ export default function ClientsPage() {
                     <td>{client.user_email}</td>
                     <td>{client.phone}</td>
                     <td>{formatDateTime(client.created_at)}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button className="button button-small" type="button" onClick={() => void editClient(client)}>
+                          Edit
+                        </button>
+                        <button className="button button-small button-danger" type="button" onClick={() => void deleteClient(client)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <label className="small" htmlFor="client-page-size">
+                {t("common.rows")}
+              </label>
+              <select
+                id="client-page-size"
+                className="select"
+                style={{ width: "auto" }}
+                value={String(pageSize)}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+              <button className="button button-small" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                {t("common.previous")}
+              </button>
+              <span className="small">
+                {t("common.page")} {page} / {totalPages}
+              </span>
+              <button className="button button-small" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                {t("common.next")}
+              </button>
+            </div>
           </article>
         </section>
       </main>

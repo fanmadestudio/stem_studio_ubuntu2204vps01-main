@@ -1,4 +1,5 @@
 from django.db.models import Sum
+from django.db import transaction
 from rest_framework import serializers
 
 from billing.models import Invoice, Payment
@@ -14,6 +15,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "issued_at", "paid_amount"]
 
     def get_paid_amount(self, obj):
+        annotated_paid_amount = getattr(obj, "paid_amount", None)
+        if annotated_paid_amount is not None:
+            return annotated_paid_amount
         return obj.payments.aggregate(total=Sum("amount"))["total"] or 0
 
 
@@ -24,12 +28,25 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "paid_at"]
 
     def validate(self, attrs):
-        invoice = attrs.get("invoice")
+        invoice = attrs.get("invoice", self.instance.invoice if self.instance else None)
         if invoice and invoice.status == Invoice.InvoiceStatus.CANCELLED:
             raise serializers.ValidationError("Cancelled invoices cannot receive new payments.")
+        amount = attrs.get("amount", self.instance.amount if self.instance else None)
+        if amount is not None and amount <= 0:
+            raise serializers.ValidationError("Payment amount must be greater than zero.")
         return attrs
 
     def create(self, validated_data):
-        payment = super().create(validated_data)
-        recalculate_invoice_status(payment.invoice)
+        with transaction.atomic():
+            payment = super().create(validated_data)
+            recalculate_invoice_status(payment.invoice)
+        return payment
+
+    def update(self, instance, validated_data):
+        old_invoice = instance.invoice
+        with transaction.atomic():
+            payment = super().update(instance, validated_data)
+            recalculate_invoice_status(payment.invoice)
+            if old_invoice.pk != payment.invoice.pk:
+                recalculate_invoice_status(old_invoice)
         return payment

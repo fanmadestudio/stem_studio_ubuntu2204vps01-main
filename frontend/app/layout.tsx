@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthGate } from "./components/auth-gate";
+import { LanguageProvider } from "./components/language-provider";
 import { ThemeProvider } from "./components/theme-provider";
 import "./globals.css";
 
@@ -17,10 +18,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeProvider>
-          <AuthGate>{children}</AuthGate>
+          <LanguageProvider>
+            <AuthGate>{children}</AuthGate>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-

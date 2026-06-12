@@ -164,6 +164,13 @@ a {
 
 .kpi-row {
   display: grid;
+}
+
+.kpi-row--revenue {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kpi-row--ops {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -303,7 +310,18 @@ a {
 
   .sidebar {
     position: relative;
+    top: auto;
     height: auto;
+  }
+
+  .main {
+    padding: 14px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
   }
 
   .form-grid {
@@ -312,5 +330,11 @@ a {
 
   .kpi-row {
     grid-template-columns: 1fr;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
   }
 }
