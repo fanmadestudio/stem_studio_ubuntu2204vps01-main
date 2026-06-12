@@ -4,6 +4,10 @@
       "name": "Setup Backend venv",
       "command": "cd backend && python3 -m venv venv"
     },
+	{
+      "name": "Setup Backend Django",
+      "command": "cd backend && pip install django"
+    },
     {
       "name": "Install Backend dependencies",
       "command": "cd backend && ./venv/bin/pip install -r requirements.txt"
@@ -12,13 +16,17 @@
       "name": "Run Backend migrations",
       "command": "cd backend && ./venv/bin/python manage.py migrate"
     },
-    {
-      "name": "Run Backend migrations",
+	{
+      "name": "Run Backend seed credentials",
       "command": "cd backend && ./venv/bin/python manage.py seed_credentials"
     },
     {
       "name": "Install Frontend dependencies",
       "command": "cd frontend && npm install"
+    },
+	{
+      "name": "Install Frontend Nextjs",
+      "command": "cd frontend && npm install nextjs"
     }
   ],
   "tasks": {
