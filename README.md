@@ -102,7 +102,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
 Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.
 
-## Default Credential Seed
+## Default Account Seed
 
 Command:
 
@@ -110,11 +110,6 @@ Command:
 cd backend
 py -3 manage.py seed_credentials
 ```
-
-Credential:
-
-- `admin@stemstudio.com / 4dm1nst3mstvd10`
-- `staff@stemstudio.com / St4ffst3mstvd10`
 
 `seed_credentials` aman dijalankan berulang (update-or-create).
 
@@ -128,7 +123,7 @@ Jalankan dari folder `backend/`.
 py -3 manage.py flush --no-input
 ```
 
-### 2) Isi ulang credential default
+### 2) Isi ulang akun default
 
 ```powershell
 py -3 manage.py seed_credentials
