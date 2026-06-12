@@ -34,6 +34,15 @@ def _env_list(key: str, default: str = "") -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
+def _merge_unique(*groups: list[str]) -> list[str]:
+    merged: list[str] = []
+    for group in groups:
+        for item in group:
+            if item not in merged:
+                merged.append(item)
+    return merged
+
+
 def _looks_like_placeholder(value: str | None) -> bool:
     if not value:
         return False
@@ -73,6 +82,9 @@ _validate_database_env()
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+if DEBUG:
+    # Allow dynamic CodeSandbox preview hosts without requiring per-sandbox edits.
+    ALLOWED_HOSTS = _merge_unique(ALLOWED_HOSTS, [".csb.app"])
 
 AUTH_USER_MODEL = "users.User"
 
@@ -187,7 +199,7 @@ CSRF_TRUSTED_ORIGINS = _env_list(
     "http://localhost:3000,http://127.0.0.1:3000",
 )
 if DEBUG:
-    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, "https://*.csb.app"]
+    CSRF_TRUSTED_ORIGINS = _merge_unique(CSRF_TRUSTED_ORIGINS, ["https://*.csb.app"])
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Jakarta"
