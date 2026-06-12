@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useLanguage } from "../components/language-provider";
 import { Sidebar } from "../components/sidebar";
-import { apiFetchList } from "../lib/api";
+import { apiFetchPage } from "../lib/api";
 import { formatIdr } from "../lib/format";
 import { getStatusClass } from "../lib/status";
 
@@ -30,22 +31,30 @@ function statusLabel(status: ApiInvoice["status"]): string {
 }
 
 export default function InvoicesPage() {
+  const { t } = useLanguage();
   const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const [notice, setNotice] = useState("No new notification");
   const sortedInvoices = useMemo(() => [...invoices].sort((a, b) => b.id - a.id), [invoices]);
 
   useEffect(() => {
     async function loadInvoices() {
       try {
-        const data = await apiFetchList<ApiInvoice>("/api/v1/invoices/");
-        setInvoices(data);
+        const data = await apiFetchPage<ApiInvoice>(`/api/v1/invoices/?page=${page}&page_size=${pageSize}`);
+        setInvoices(data.results);
+        setTotalPages(Math.max(1, Math.ceil(data.count / pageSize)));
       } catch {
         setNotice("Failed to load invoices from API.");
-      } finally {
       }
     }
     void loadInvoices();
-  }, []);
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   return (
     <div className="shell">
@@ -76,7 +85,7 @@ export default function InvoicesPage() {
                 {sortedInvoices.map((invoice) => (
                   <tr key={invoice.id}>
                     <td>
-                      <Link href={`/invoices/${invoice.id}`} target="_blank" rel="noopener noreferrer">
+                      <Link href={`/invoices/${invoice.id}`}>
                         {invoiceCode(invoice.id)}
                       </Link>
                     </td>
@@ -88,7 +97,7 @@ export default function InvoicesPage() {
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Link className="button button-small" href={`/invoices/${invoice.id}`} target="_blank" rel="noopener noreferrer">
+                        <Link className="button button-small" href={`/invoices/${invoice.id}`}>
                           Detail
                         </Link>
                       </div>
@@ -100,6 +109,31 @@ export default function InvoicesPage() {
             <p className="small" style={{ marginTop: 10 }}>
               {notice}
             </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <label className="small" htmlFor="invoice-page-size" style={{ alignSelf: "center" }}>
+                {t("common.rows")}
+              </label>
+              <select
+                id="invoice-page-size"
+                className="select"
+                style={{ width: "auto" }}
+                value={String(pageSize)}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+              <button className="button button-small" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                {t("common.previous")}
+              </button>
+              <span className="small" style={{ alignSelf: "center" }}>
+                {t("common.page")} {page} / {totalPages}
+              </span>
+              <button className="button button-small" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                {t("common.next")}
+              </button>
+            </div>
           </article>
         </section>
       </main>

@@ -41,13 +41,35 @@ type PaginatedResponse<T> = {
   results: T[];
 };
 
-export async function apiFetchList<T>(path: string, init: RequestInit = {}): Promise<T[]> {
-  const payload = await apiFetch<T[] | PaginatedResponse<T>>(path, init);
-  if (Array.isArray(payload)) return payload;
-  if (!payload || !Array.isArray(payload.results)) return [];
+type ListOptions = {
+  allPages?: boolean;
+};
 
-  const allResults: T[] = [...payload.results];
-  let nextUrl = payload.next;
+export async function apiFetchPage<T>(path: string, init: RequestInit = {}): Promise<PaginatedResponse<T>> {
+  const payload = await apiFetch<T[] | PaginatedResponse<T>>(path, init);
+  if (Array.isArray(payload)) {
+    return {
+      count: payload.length,
+      next: null,
+      previous: null,
+      results: payload,
+    };
+  }
+  if (!payload || !Array.isArray(payload.results)) {
+    return { count: 0, next: null, previous: null, results: [] };
+  }
+  return payload;
+}
+
+export async function apiFetchList<T>(path: string, init: RequestInit = {}, options: ListOptions = {}): Promise<T[]> {
+  const { allPages = false } = options;
+  const page = await apiFetchPage<T>(path, init);
+  if (!allPages) {
+    return page.results;
+  }
+
+  const allResults: T[] = [...page.results];
+  let nextUrl = page.next;
 
   while (nextUrl) {
     const token = getAccessToken();

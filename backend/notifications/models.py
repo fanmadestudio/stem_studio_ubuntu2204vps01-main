@@ -22,6 +22,13 @@ class Notification(models.Model):
     scheduled_for = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["scheduled_for"]),
+        ]
+
     def __str__(self) -> str:
         return f"{self.title} ({self.status})"
 

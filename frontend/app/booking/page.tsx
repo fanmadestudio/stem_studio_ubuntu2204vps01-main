@@ -2,7 +2,7 @@
 
 import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { Sidebar } from "../components/sidebar";
-import { apiFetch, apiFetchList } from "../lib/api";
+import { apiFetch, apiFetchPage } from "../lib/api";
 import { formatIdr } from "../lib/format";
 import { getStatusClass } from "../lib/status";
 
@@ -103,21 +103,21 @@ export default function BookingPage() {
     async function loadData() {
       try {
         const [clientsData, roomsData, engineersData, bookingsData] = await Promise.all([
-          apiFetchList<ApiClient>("/api/v1/clients/"),
-          apiFetchList<ApiRoom>("/api/v1/rooms/"),
-          apiFetchList<ApiEngineer>("/api/v1/engineers/"),
-          apiFetchList<ApiBooking>("/api/v1/bookings/")
+          apiFetchPage<ApiClient>("/api/v1/clients/?page=1&page_size=200"),
+          apiFetchPage<ApiRoom>("/api/v1/rooms/?page=1&page_size=200"),
+          apiFetchPage<ApiEngineer>("/api/v1/engineers/?page=1&page_size=200"),
+          apiFetchPage<ApiBooking>("/api/v1/bookings/?page=1&page_size=200")
         ]);
-        setClients(clientsData);
-        setRooms(roomsData);
-        setEngineers(engineersData);
-        setBookings(bookingsData);
-        const firstAvailableEngineer = engineersData.find((engineer) => engineer.is_available);
+        setClients(clientsData.results);
+        setRooms(roomsData.results);
+        setEngineers(engineersData.results);
+        setBookings(bookingsData.results);
+        const firstAvailableEngineer = engineersData.results.find((engineer) => engineer.is_available);
 
         setBookingForm((prev) => ({
           ...prev,
-          client: clientsData[0] ? String(clientsData[0].id) : "",
-          room: roomsData[0] ? String(roomsData[0].id) : "",
+          client: clientsData.results[0] ? String(clientsData.results[0].id) : "",
+          room: roomsData.results[0] ? String(roomsData.results[0].id) : "",
           engineer: firstAvailableEngineer ? String(firstAvailableEngineer.id) : ""
         }));
       } catch {

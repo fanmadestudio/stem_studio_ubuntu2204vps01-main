@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useLanguage } from "../components/language-provider";
 import { Sidebar } from "../components/sidebar";
-import { apiFetch, apiFetchList } from "../lib/api";
+import { apiFetch, apiFetchPage } from "../lib/api";
 import { getStatusClass } from "../lib/status";
 
 type ApiEngineer = {
@@ -34,27 +35,57 @@ function readableError(error: unknown, fallback: string): string {
 }
 
 export default function StaffEquipmentPage() {
+  const { t } = useLanguage();
   const [engineers, setEngineers] = useState<ApiEngineer[]>([]);
   const [equipments, setEquipments] = useState<ApiEquipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("No new notification");
+  const [engineerPage, setEngineerPage] = useState(1);
+  const [equipmentPage, setEquipmentPage] = useState(1);
+  const [engineerPageSize, setEngineerPageSize] = useState(10);
+  const [equipmentPageSize, setEquipmentPageSize] = useState(10);
+  const [engineerTotalPages, setEngineerTotalPages] = useState(1);
+  const [equipmentTotalPages, setEquipmentTotalPages] = useState(1);
   const [staffForm, setStaffForm] = useState({ name: "", role: "engineer" as "engineer" | "staff", isAvailable: true });
   const [equipmentForm, setEquipmentForm] = useState({ name: "", status: "ready" as ApiEquipment["status"] });
 
   useEffect(() => {
-    async function loadData() {
+    async function loadEngineers() {
       try {
-        const [engineerData, equipmentData] = await Promise.all([apiFetchList<ApiEngineer>("/api/v1/engineers/"), apiFetchList<ApiEquipment>("/api/v1/equipment/")]);
-        setEngineers(engineerData);
-        setEquipments(equipmentData);
+        const data = await apiFetchPage<ApiEngineer>(`/api/v1/engineers/?page=${engineerPage}&page_size=${engineerPageSize}`);
+        setEngineers(data.results);
+        setEngineerTotalPages(Math.max(1, Math.ceil(data.count / engineerPageSize)));
       } catch {
         setNotice("Failed to load staff/equipment data from API.");
       } finally {
         setLoading(false);
       }
     }
-    void loadData();
-  }, []);
+    void loadEngineers();
+  }, [engineerPage, engineerPageSize]);
+
+  useEffect(() => {
+    async function loadEquipment() {
+      try {
+        const data = await apiFetchPage<ApiEquipment>(`/api/v1/equipment/?page=${equipmentPage}&page_size=${equipmentPageSize}`);
+        setEquipments(data.results);
+        setEquipmentTotalPages(Math.max(1, Math.ceil(data.count / equipmentPageSize)));
+      } catch {
+        setNotice("Failed to load staff/equipment data from API.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadEquipment();
+  }, [equipmentPage, equipmentPageSize]);
+
+  useEffect(() => {
+    setEngineerPage(1);
+  }, [engineerPageSize]);
+
+  useEffect(() => {
+    setEquipmentPage(1);
+  }, [equipmentPageSize]);
 
   async function submitStaff(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -115,6 +146,29 @@ export default function StaffEquipmentPage() {
     }
   }
 
+  async function editStaffStatus(staff: ApiEngineer): Promise<void> {
+    const input = window.prompt(`Set status for ${staff.name} (available/busy):`, staff.is_available ? "available" : "busy");
+    if (!input) return;
+    const normalized = input.trim().toLowerCase();
+    if (normalized !== "available" && normalized !== "busy") {
+      setNotice("Invalid staff status. Use available or busy.");
+      return;
+    }
+
+    try {
+      const updated = await apiFetch<ApiEngineer>(`/api/v1/engineers/${staff.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          is_available: normalized === "available",
+        }),
+      });
+      setEngineers((prev) => prev.map((item) => (item.id === staff.id ? updated : item)));
+      setNotice(`${staff.name} status updated to ${updated.is_available ? "Available" : "Busy"}.`);
+    } catch (error) {
+      setNotice(readableError(error, `Failed to update status for ${staff.name}.`));
+    }
+  }
+
   async function deleteEquipment(equipment: ApiEquipment): Promise<void> {
     const confirmed = window.confirm(`Delete equipment ${equipment.name}?`);
     if (!confirmed) return;
@@ -126,6 +180,29 @@ export default function StaffEquipmentPage() {
       setNotice(`Equipment ${equipment.name} deleted.`);
     } catch (error) {
       setNotice(readableError(error, `Failed to delete equipment ${equipment.name}.`));
+    }
+  }
+
+  async function editEquipmentStatus(equipment: ApiEquipment): Promise<void> {
+    const input = window.prompt(`Set status for ${equipment.name} (ready/maintenance/busy):`, equipment.status);
+    if (!input) return;
+    const normalized = input.trim().toLowerCase();
+    if (normalized !== "ready" && normalized !== "maintenance" && normalized !== "busy") {
+      setNotice("Invalid equipment status. Use ready, maintenance, or busy.");
+      return;
+    }
+
+    try {
+      const updated = await apiFetch<ApiEquipment>(`/api/v1/equipment/${equipment.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: normalized,
+        }),
+      });
+      setEquipments((prev) => prev.map((item) => (item.id === equipment.id ? updated : item)));
+      setNotice(`Equipment ${equipment.name} status updated to ${equipmentStatusLabel(updated.status)}.`);
+    } catch (error) {
+      setNotice(readableError(error, `Failed to update status for equipment ${equipment.name}.`));
     }
   }
 
@@ -198,6 +275,9 @@ export default function StaffEquipmentPage() {
                       <span className={getStatusClass(staff.is_available ? "Available" : "Busy")}>{staff.is_available ? "Available" : "Busy"}</span>
                     </td>
                     <td>
+                      <button className="button button-small" type="button" onClick={() => void editStaffStatus(staff)}>
+                        Edit
+                      </button>{" "}
                       <button className="button button-small button-danger" type="button" onClick={() => void deleteStaff(staff)}>
                         Delete
                       </button>
@@ -206,6 +286,36 @@ export default function StaffEquipmentPage() {
                 ))}
               </tbody>
             </table>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <label className="small" htmlFor="engineer-page-size">
+                {t("common.rows")}
+              </label>
+              <select
+                id="engineer-page-size"
+                className="select"
+                style={{ width: "auto" }}
+                value={String(engineerPageSize)}
+                onChange={(e) => setEngineerPageSize(Number(e.target.value))}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+              <button
+                className="button button-small"
+                type="button"
+                onClick={() => setEngineerPage((p) => Math.max(1, p - 1))}
+                disabled={engineerPage === 1}
+              >
+                {t("common.previous")}
+              </button>
+              <span className="small">
+                {t("common.page")} {engineerPage} / {engineerTotalPages}
+              </span>
+              <button className="button button-small" type="button" onClick={() => setEngineerPage((p) => Math.min(engineerTotalPages, p + 1))} disabled={engineerPage >= engineerTotalPages}>
+                {t("common.next")}
+              </button>
+            </div>
           </article>
 
           <article className="card">
@@ -252,6 +362,9 @@ export default function StaffEquipmentPage() {
                       <span className={getStatusClass(equipmentStatusLabel(equipment.status))}>{equipmentStatusLabel(equipment.status)}</span>
                     </td>
                     <td>
+                      <button className="button button-small" type="button" onClick={() => void editEquipmentStatus(equipment)}>
+                        Edit
+                      </button>{" "}
                       <button className="button button-small button-danger" type="button" onClick={() => void deleteEquipment(equipment)}>
                         Delete
                       </button>
@@ -260,6 +373,36 @@ export default function StaffEquipmentPage() {
                 ))}
               </tbody>
             </table>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <label className="small" htmlFor="equipment-page-size">
+                {t("common.rows")}
+              </label>
+              <select
+                id="equipment-page-size"
+                className="select"
+                style={{ width: "auto" }}
+                value={String(equipmentPageSize)}
+                onChange={(e) => setEquipmentPageSize(Number(e.target.value))}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+              <button
+                className="button button-small"
+                type="button"
+                onClick={() => setEquipmentPage((p) => Math.max(1, p - 1))}
+                disabled={equipmentPage === 1}
+              >
+                {t("common.previous")}
+              </button>
+              <span className="small">
+                {t("common.page")} {equipmentPage} / {equipmentTotalPages}
+              </span>
+              <button className="button button-small" type="button" onClick={() => setEquipmentPage((p) => Math.min(equipmentTotalPages, p + 1))} disabled={equipmentPage >= equipmentTotalPages}>
+                {t("common.next")}
+              </button>
+            </div>
           </article>
         </section>
       </main>

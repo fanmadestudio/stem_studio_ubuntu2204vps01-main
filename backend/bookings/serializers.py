@@ -5,13 +5,20 @@ from bookings.models import Booking
 
 
 class BookingSerializer(serializers.ModelSerializer):
+    client_name = serializers.SerializerMethodField()
+    room_name = serializers.CharField(source="room.name", read_only=True)
+    engineer_name = serializers.CharField(source="engineer.name", read_only=True)
+
     class Meta:
         model = Booking
         fields = [
             "id",
             "client",
+            "client_name",
             "room",
+            "room_name",
             "engineer",
+            "engineer_name",
             "equipment",
             "start_time",
             "end_time",
@@ -21,10 +28,18 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def get_client_name(self, obj):
+        full_name = f"{obj.client.user.first_name} {obj.client.user.last_name}".strip()
+        return full_name or obj.client.user.email
+
     def validate(self, attrs):
         # Support partial updates (e.g. PATCH status-only) by falling back
         # to current instance values when a scheduling field is not provided.
         instance = self.instance
+        scheduling_fields = {"start_time", "end_time", "room", "engineer"}
+        if instance and not any(field in attrs for field in scheduling_fields):
+            return attrs
+
         start_time = attrs.get("start_time", instance.start_time if instance else None)
         end_time = attrs.get("end_time", instance.end_time if instance else None)
         room = attrs.get("room", instance.room if instance else None)

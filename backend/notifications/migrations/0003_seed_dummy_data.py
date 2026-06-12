@@ -1,20 +1,9 @@
-from datetime import timedelta
+import calendar
+from datetime import datetime, timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.db import migrations
 from django.utils import timezone
-
-
-DUMMY_EMAILS = [
-    "admin@stemstudio.com",
-    "staff@stemstudio.com",
-    "client.dummy@stemstudio.test",
-    "client.ayla@stemstudio.test",
-    "client.nero@stemstudio.test",
-    "client.bima@stemstudio.test",
-    "client.raka@stemstudio.test",
-    "client.salsa@stemstudio.test",
-]
 
 
 def seed_dummy_data(apps, schema_editor):
@@ -72,12 +61,12 @@ def seed_dummy_data(apps, schema_editor):
     )
 
     client_user, _ = User.objects.update_or_create(
-        email="client.dummy@stemstudio.test",
+        email="client.nadya@stemstudio.test",
         defaults={
             "username": "",
             "role": "client",
-            "first_name": "Client",
-            "last_name": "Dummy",
+            "first_name": "Nadya",
+            "last_name": "Permata",
             "is_staff": False,
             "is_superuser": False,
             "is_active": True,
@@ -87,10 +76,13 @@ def seed_dummy_data(apps, schema_editor):
 
     extra_client_specs = [
         ("client.ayla@stemstudio.test", "Ayla", "Pratama", "+62 812-1111-0001"),
-        ("client.nero@stemstudio.test", "Nero", "Studio", "+62 812-1111-0002"),
-        ("client.bima@stemstudio.test", "Bima", "Orchestra", "+62 812-1111-0003"),
-        ("client.raka@stemstudio.test", "Raka", "Band", "+62 812-1111-0004"),
-        ("client.salsa@stemstudio.test", "Salsa", "Voice", "+62 812-1111-0005"),
+        ("client.gilang@stemstudio.test", "Gilang", "Saputra", "+62 812-1111-0002"),
+        ("client.dewi@stemstudio.test", "Dewi", "Lestari", "+62 812-1111-0003"),
+        ("client.reza@stemstudio.test", "Reza", "Maulana", "+62 812-1111-0004"),
+        ("client.tiara@stemstudio.test", "Tiara", "Anindita", "+62 812-1111-0005"),
+        ("client.farhan@stemstudio.test", "Farhan", "Ramadhan", "+62 812-1111-0006"),
+        ("client.kirana@stemstudio.test", "Kirana", "Putri", "+62 812-1111-0007"),
+        ("client.aditya@stemstudio.test", "Aditya", "Wibowo", "+62 812-1111-0008"),
     ]
     all_clients = [
         Client.objects.create(
@@ -143,59 +135,72 @@ def seed_dummy_data(apps, schema_editor):
         Equipment.objects.create(name="Mixer F", status="ready"),
     ]
 
-    now = timezone.now()
-    status_cycle = ["completed", "confirmed", "pending", "cancelled"]
-    invoice_status_cycle = ["paid", "partial", "unpaid"]
+    now = timezone.localtime()
+    seed_start_year = now.year - 1
+    seed_end_year = now.year
+    status_cycle = ["completed", "confirmed", "pending", "confirmed", "cancelled"]
+    invoice_status_cycle = ["paid", "paid", "partial", "unpaid"]
 
-    for week in range(52):
-        for slot in range(2):
-            status = status_cycle[(week + slot) % len(status_cycle)]
-            client = all_clients[(week + slot) % len(all_clients)]
-            room = rooms[(week + slot) % len(rooms)]
-            engineer = engineers[(week + slot) % len(engineers)]
+    month_index = 0
+    for year in range(seed_start_year, seed_end_year + 1):
+        for month in range(1, 13):
+            days_in_month = calendar.monthrange(year, month)[1]
+            bookings_in_month = 6 + (month_index % 4)  # 6-9 bookings each month
 
-            days_back = (51 - week) * 7
-            start_time = now - timedelta(days=days_back) + timedelta(hours=9 + (slot * 4))
-            end_time = start_time + timedelta(hours=2 + (slot % 2))
-            booking = Booking.objects.create(
-                client=client,
-                room=room,
-                engineer=engineer,
-                start_time=start_time,
-                end_time=end_time,
-                notes=f"Dummy booking week {week + 1}, slot {slot + 1}.",
-                status=status,
-            )
-            booking.equipment.add(
-                equipment_pool[(week + slot) % len(equipment_pool)],
-                equipment_pool[(week + slot + 1) % len(equipment_pool)],
-            )
+            for i in range(bookings_in_month):
+                client = all_clients[(month_index + i) % len(all_clients)]
+                room = rooms[(month_index + i) % len(rooms)]
+                engineer = engineers[(month_index + i) % len(engineers)]
+                status = status_cycle[(month_index + i) % len(status_cycle)]
 
-            if status != "cancelled":
-                invoice_total = room.price * (2 + (slot % 2))
-                invoice_status = invoice_status_cycle[(week + slot) % len(invoice_status_cycle)]
-                invoice = Invoice.objects.create(
-                    booking=booking,
-                    total=invoice_total,
-                    status=invoice_status,
+                day = min(2 + (i * 3), days_in_month)
+                start_hour = 9 + ((i % 3) * 3)  # 09:00, 12:00, 15:00
+                duration_hours = 2 + (i % 2)  # 2-3 jam
+                naive_start = datetime(year, month, day, start_hour, 0, 0)
+                start_time = timezone.make_aware(naive_start, timezone.get_current_timezone())
+                end_time = start_time + timedelta(hours=duration_hours)
+
+                booking = Booking.objects.create(
+                    client=client,
+                    room=room,
+                    engineer=engineer,
+                    start_time=start_time,
+                    end_time=end_time,
+                    notes=f"Dummy booking {year}-{month:02d} #{i + 1}.",
+                    status=status,
                 )
-                # Spread invoice dates so trends are not flat.
-                Invoice.objects.filter(pk=invoice.pk).update(issued_at=start_time + timedelta(hours=1))
+                booking.equipment.add(
+                    equipment_pool[(month_index + i) % len(equipment_pool)],
+                    equipment_pool[(month_index + i + 1) % len(equipment_pool)],
+                )
 
-                if invoice_status == "paid":
-                    payment = Payment.objects.create(
-                        invoice=invoice,
-                        amount=invoice_total,
-                        note="Full payment dummy",
+                if status != "cancelled":
+                    invoice_total = room.price * duration_hours
+                    invoice_status = invoice_status_cycle[(month_index + i) % len(invoice_status_cycle)]
+                    invoice = Invoice.objects.create(
+                        booking=booking,
+                        total=invoice_total,
+                        status=invoice_status,
                     )
-                    Payment.objects.filter(pk=payment.pk).update(paid_at=start_time + timedelta(hours=3))
-                elif invoice_status == "partial":
-                    payment = Payment.objects.create(
-                        invoice=invoice,
-                        amount=invoice_total / 2,
-                        note="DP payment dummy",
-                    )
-                    Payment.objects.filter(pk=payment.pk).update(paid_at=start_time + timedelta(hours=2))
+                    issued_at = start_time + timedelta(hours=1)
+                    Invoice.objects.filter(pk=invoice.pk).update(issued_at=issued_at)
+
+                    if invoice_status == "paid":
+                        payment = Payment.objects.create(
+                            invoice=invoice,
+                            amount=invoice_total,
+                            note="Full payment dummy",
+                        )
+                        Payment.objects.filter(pk=payment.pk).update(paid_at=issued_at + timedelta(hours=2))
+                    elif invoice_status == "partial":
+                        payment = Payment.objects.create(
+                            invoice=invoice,
+                            amount=invoice_total / 2,
+                            note="DP payment dummy",
+                        )
+                        Payment.objects.filter(pk=payment.pk).update(paid_at=issued_at + timedelta(hours=1))
+
+            month_index += 1
 
     for idx, client in enumerate(all_clients):
         Notification.objects.create(

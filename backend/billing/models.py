@@ -15,6 +15,13 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.UNPAID)
     issued_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["status"]),
+            models.Index(fields=["issued_at"]),
+            models.Index(fields=["issued_at", "status"]),
+        ]
+
     def __str__(self) -> str:
         return f"Invoice {self.id} - Booking {self.booking_id}"
 
@@ -24,6 +31,12 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["invoice", "paid_at"]),
+            models.Index(fields=["paid_at"]),
+        ]
 
     def __str__(self) -> str:
         return f"Payment {self.id} - Invoice {self.invoice_id}"

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Sidebar } from "../../components/sidebar";
 import { apiFetch, apiFetchList } from "../../lib/api";
 import { formatIdr } from "../../lib/format";
@@ -26,17 +26,17 @@ type ApiPayment = {
 type ApiBooking = {
   id: number;
   client: number;
+  client_name: string;
   room: number;
+  room_name: string;
   engineer: number;
+  engineer_name: string;
   start_time: string;
   end_time: string;
   notes: string;
   status: "pending" | "confirmed" | "completed" | "cancelled";
 };
 
-type ApiClient = { id: number; first_name: string; last_name: string; user_email: string };
-type ApiRoom = { id: number; name: string };
-type ApiEngineer = { id: number; name: string };
 type ApiProfile = { id: number; role: "admin" | "staff" | "client" };
 
 function invoiceCode(id: number): string {
@@ -67,14 +67,13 @@ function parseApiError(error: unknown, fallback: string): string {
 
 export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const invoiceId = Number(params.id);
+  const isReadOnly = searchParams.get("readonly") === "1";
 
   const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
   const [payments, setPayments] = useState<ApiPayment[]>([]);
   const [booking, setBooking] = useState<ApiBooking | null>(null);
-  const [clients, setClients] = useState<ApiClient[]>([]);
-  const [rooms, setRooms] = useState<ApiRoom[]>([]);
-  const [engineers, setEngineers] = useState<ApiEngineer[]>([]);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
@@ -89,22 +88,16 @@ export default function InvoiceDetailPage() {
 
     async function loadData() {
       try {
-        const [invoiceData, allPayments, clientsData, roomsData, engineersData, profileData] = await Promise.all([
+        const [invoiceData, invoicePayments, profileData] = await Promise.all([
           apiFetch<ApiInvoice>(`/api/v1/invoices/${invoiceId}/`),
-          apiFetchList<ApiPayment>("/api/v1/payments/"),
-          apiFetchList<ApiClient>("/api/v1/clients/"),
-          apiFetchList<ApiRoom>("/api/v1/rooms/"),
-          apiFetchList<ApiEngineer>("/api/v1/engineers/"),
+          apiFetchList<ApiPayment>(`/api/v1/payments/?invoice=${invoiceId}&page_size=200`, {}, { allPages: true }),
           apiFetch<ApiProfile>("/api/v1/auth/profile/")
         ]);
         const bookingData = await apiFetch<ApiBooking>(`/api/v1/bookings/${invoiceData.booking}/`);
 
         setInvoice(invoiceData);
-        setPayments(allPayments.filter((payment) => payment.invoice === invoiceId));
+        setPayments(invoicePayments);
         setBooking(bookingData);
-        setClients(clientsData);
-        setRooms(roomsData);
-        setEngineers(engineersData);
         setProfile(profileData);
         setNotice("Invoice loaded.");
       } catch {
@@ -130,24 +123,9 @@ export default function InvoiceDetailPage() {
     return new Date(booking.end_time).toLocaleString("id-ID");
   }, [booking?.end_time]);
 
-  const clientName = useMemo(() => {
-    if (!booking) return "-";
-    const target = clients.find((client) => client.id === booking.client);
-    if (!target) return `Client #${booking.client}`;
-    return `${target.first_name} ${target.last_name}`.trim() || target.user_email;
-  }, [booking, clients]);
-
-  const roomName = useMemo(() => {
-    if (!booking) return "-";
-    const target = rooms.find((room) => room.id === booking.room);
-    return target?.name ?? `Room #${booking.room}`;
-  }, [booking, rooms]);
-
-  const engineerName = useMemo(() => {
-    if (!booking) return "-";
-    const target = engineers.find((engineer) => engineer.id === booking.engineer);
-    return target?.name ?? `Engineer #${booking.engineer}`;
-  }, [booking, engineers]);
+  const clientName = booking?.client_name ?? "-";
+  const roomName = booking?.room_name ?? "-";
+  const engineerName = booking?.engineer_name ?? "-";
 
   const isAdmin = profile?.role === "admin";
   const totalAmount = Number(invoice?.total ?? 0);
@@ -157,10 +135,10 @@ export default function InvoiceDetailPage() {
   async function refreshInvoiceAndPayments(): Promise<void> {
     const [invoiceData, allPayments] = await Promise.all([
       apiFetch<ApiInvoice>(`/api/v1/invoices/${invoiceId}/`),
-      apiFetchList<ApiPayment>("/api/v1/payments/")
+      apiFetchList<ApiPayment>(`/api/v1/payments/?invoice=${invoiceId}&page_size=200`, {}, { allPages: true })
     ]);
     setInvoice(invoiceData);
-    setPayments(allPayments.filter((payment) => payment.invoice === invoiceId));
+    setPayments(allPayments);
   }
 
   async function submitPayment(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -214,7 +192,7 @@ export default function InvoiceDetailPage() {
         <section className="topbar no-print" style={{ marginTop: 20 }}>
           <div>
             <h1>{invoice ? invoiceCode(invoice.id) : "Invoice Detail"}</h1>
-            <p className="small">Detailed invoice information and payment history</p>
+            <p className="small">{isReadOnly ? "Read-only invoice detail from Revenue report" : "Detailed invoice information and payment history"}</p>
           </div>
           <button className="button button-small" type="button" onClick={() => window.print()}>
             Export PDF
@@ -273,31 +251,33 @@ export default function InvoiceDetailPage() {
                   <div className="balance-row"><span>Balance Due</span><strong>{formatIdr(balance)}</strong></div>
                 </section>
 
-                <section className="invoice-block no-print">
-                  <h3>Payment Input</h3>
-                  <form className="payment-form" onSubmit={(event) => void submitPayment(event)}>
-                    <input
-                      className="input"
-                      type="number"
-                      min="1"
-                      step="0.01"
-                      placeholder="Payment amount"
-                      value={paymentForm.amount}
-                      onChange={(event) => setPaymentForm((prev) => ({ ...prev, amount: event.target.value }))}
-                      required
-                    />
-                    <input
-                      className="input"
-                      type="text"
-                      placeholder="Optional note"
-                      value={paymentForm.note}
-                      onChange={(event) => setPaymentForm((prev) => ({ ...prev, note: event.target.value }))}
-                    />
-                    <button className="button button-small" type="submit" disabled={savingPayment}>
-                      {savingPayment ? "Saving..." : "Add Payment"}
-                    </button>
-                  </form>
-                </section>
+                {!isReadOnly && (
+                  <section className="invoice-block no-print">
+                    <h3>Payment Input</h3>
+                    <form className="payment-form" onSubmit={(event) => void submitPayment(event)}>
+                      <input
+                        className="input"
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        placeholder="Payment amount"
+                        value={paymentForm.amount}
+                        onChange={(event) => setPaymentForm((prev) => ({ ...prev, amount: event.target.value }))}
+                        required
+                      />
+                      <input
+                        className="input"
+                        type="text"
+                        placeholder="Optional note"
+                        value={paymentForm.note}
+                        onChange={(event) => setPaymentForm((prev) => ({ ...prev, note: event.target.value }))}
+                      />
+                      <button className="button button-small" type="submit" disabled={savingPayment}>
+                        {savingPayment ? "Saving..." : "Add Payment"}
+                      </button>
+                    </form>
+                  </section>
+                )}
 
                 <section className="invoice-block">
                   <h3>Payment History</h3>
@@ -308,13 +288,13 @@ export default function InvoiceDetailPage() {
                         <th>Paid At</th>
                         <th>Note</th>
                         <th className="amount-col">Amount</th>
-                        <th className="no-print">Action</th>
+                        {!isReadOnly && <th className="no-print">Action</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {payments.length === 0 ? (
                         <tr>
-                          <td colSpan={5}>No payment history.</td>
+                          <td colSpan={isReadOnly ? 4 : 5}>No payment history.</td>
                         </tr>
                       ) : (
                         payments.map((payment) => (
@@ -323,20 +303,22 @@ export default function InvoiceDetailPage() {
                             <td>{new Date(payment.paid_at).toLocaleString("id-ID")}</td>
                             <td>{payment.note || "-"}</td>
                             <td className="amount-col">{formatIdr(Number(payment.amount))}</td>
-                            <td className="no-print">
-                              {isAdmin ? (
-                                <button
-                                  className="button button-small button-danger"
-                                  type="button"
-                                  onClick={() => void deletePayment(payment.id)}
-                                  disabled={deletingPaymentId === payment.id}
-                                >
-                                  {deletingPaymentId === payment.id ? "Deleting..." : "Delete"}
-                                </button>
-                              ) : (
-                                "-"
-                              )}
-                            </td>
+                            {!isReadOnly && (
+                              <td className="no-print">
+                                {isAdmin ? (
+                                  <button
+                                    className="button button-small button-danger"
+                                    type="button"
+                                    onClick={() => void deletePayment(payment.id)}
+                                    disabled={deletingPaymentId === payment.id}
+                                  >
+                                    {deletingPaymentId === payment.id ? "Deleting..." : "Delete"}
+                                  </button>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+                            )}
                           </tr>
                         ))
                       )}
