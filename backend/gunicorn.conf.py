@@ -1,4 +1,6 @@
-bind = "127.0.0.1:8000"
+import os
+
+bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
 workers = 1
 threads = 2
 worker_class = "gthread"
