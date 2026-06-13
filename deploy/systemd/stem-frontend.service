@@ -1,5 +1,5 @@
 [Unit]
-Description=STEM Studio Next.js Frontend
+Description=STEM Studio Vite Frontend
 After=network.target stem-backend.service
 Wants=stem-backend.service
 
@@ -11,7 +11,7 @@ WorkingDirectory=__PROJECT_ROOT__/frontend
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOSTNAME=0.0.0.0
-ExecStart=/usr/bin/npm run start
+ExecStart=/usr/bin/npm run preview
 Restart=always
 RestartSec=3
 TimeoutStopSec=30

@@ -2,6 +2,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -20,15 +22,30 @@ def _load_env_file() -> None:
 
 
 def _env_list(key: str, default: str = "") -> list[str]:
-    raw_value = os.getenv(key, default)
+    raw_value = _env_value(key, default)
     return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+
+def _env_value(key: str, default: str = "") -> str:
+    value = os.getenv(key)
+    if value is None or not value.strip():
+        return default
+    return value.strip()
 
 
 _load_env_file()
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+DEBUG = _env_value("DJANGO_DEBUG", "1") == "1"
+SECRET_KEY = _env_value("DJANGO_SECRET_KEY")
+if not SECRET_KEY and DEBUG:
+    SECRET_KEY = "dev-only-secret-key-change-me"
+if not SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set in production.")
+
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+railway_public_domain = _env_value("RAILWAY_PUBLIC_DOMAIN")
+if railway_public_domain and railway_public_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(railway_public_domain)
 
 AUTH_USER_MODEL = "users.User"
 

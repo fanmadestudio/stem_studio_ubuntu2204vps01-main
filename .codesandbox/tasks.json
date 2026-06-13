@@ -21,7 +21,7 @@
       "command": "cd backend && ./venv/bin/python manage.py seed_credentials"
     },
     {
-      "name": "Install Frontend dependencies",
+      "name": "Install Vite frontend dependencies",
       "command": "cd frontend && npm install"
     }
   ],

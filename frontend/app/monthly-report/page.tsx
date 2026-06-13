@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../components/language-provider";
 import { Sidebar } from "../components/sidebar";
 import { apiFetch } from "../lib/api";
 import { formatIdr } from "../lib/format";
+import { Link } from "../lib/router";
 
 type MonthlySummaryRow = {
   year: number;
