@@ -36,8 +36,10 @@ def _env_value(key: str, default: str = "") -> str:
 _load_env_file()
 
 DEBUG = _env_value("DJANGO_DEBUG", "1") == "1"
-SECRET_KEY = _env_value("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
-if not DEBUG and SECRET_KEY == "dev-only-secret-key-change-me":
+SECRET_KEY = _env_value("DJANGO_SECRET_KEY")
+if not SECRET_KEY and DEBUG:
+    SECRET_KEY = "dev-only-secret-key-change-me"
+if not SECRET_KEY:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set in production.")
 
 ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
