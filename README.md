@@ -120,10 +120,14 @@ py -3 manage.py seed_credentials
 ```bash
 cd stem_studio_codesanbox_sqlite-main
 chmod +x scripts/vps_setup_ubuntu2204.sh
-PUBLIC_HOST=<VPS_IP> \
+PUBLIC_HOST=<DOMAIN_NAME> \
 SQLCIPHER_KEY='<STRONG_SQLCIPHER_KEY>' \
 bash scripts/vps_setup_ubuntu2204.sh
+sudo certbot --nginx -d <DOMAIN_NAME>
 ```
+
+Point the domain DNS `A` record to the VPS IP first. Users should open
+`https://<DOMAIN_NAME>`, not `http://<VPS_IP>:3000`.
 
 ## Catatan
 
