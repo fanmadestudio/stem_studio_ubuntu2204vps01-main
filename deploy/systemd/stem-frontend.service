@@ -11,6 +11,7 @@ WorkingDirectory=__PROJECT_ROOT__/frontend
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOST=127.0.0.1
+Environment=VITE_ALLOWED_HOSTS=__PUBLIC_HOST__
 ExecStart=/usr/bin/npm run preview
 Restart=always
 RestartSec=3

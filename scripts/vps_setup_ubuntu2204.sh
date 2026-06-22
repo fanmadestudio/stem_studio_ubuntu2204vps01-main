@@ -80,6 +80,7 @@ sudo sed -i "s|__APP_USER__|$APP_USER|g" /etc/systemd/system/stem-backend.servic
 sudo sed -i "s|__APP_GROUP__|$APP_GROUP|g" /etc/systemd/system/stem-backend.service /etc/systemd/system/stem-frontend.service
 sudo sed -i "s|__PROJECT_ROOT__|$ROOT_DIR|g" /etc/systemd/system/stem-backend.service /etc/systemd/system/stem-frontend.service
 sudo sed -i "s|__BACKEND_PORT__|$BACKEND_PORT|g" /etc/systemd/system/stem-backend.service
+sudo sed -i "s|__PUBLIC_HOST__|$PUBLIC_HOST|g" /etc/systemd/system/stem-frontend.service
 
 sudo systemctl daemon-reload
 sudo systemctl enable stem-backend stem-frontend
