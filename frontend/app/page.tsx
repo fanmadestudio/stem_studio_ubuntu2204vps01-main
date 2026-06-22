@@ -9,9 +9,6 @@ import { SmartInsightsBox } from "./components/smart-insights-box";
 import { SystemHealthCard } from "./components/system-health-card";
 import { useTheme } from "./components/theme-provider";
 import { apiFetch, apiFetchPage, getApiBase } from "./lib/api";
-
-const AUTH_NAME_KEY = "studio_name";
-const AUTH_EXPIRY_KEY = "auth_expires_at";
 type ApiClient = { id: number; first_name: string; last_name: string };
 type ApiEngineer = { id: number; name: string; role: "engineer" | "staff"; is_available: boolean };
 type ApiRoom = { id: number; name: string };
@@ -43,6 +40,15 @@ type DashboardTrendsPayload = {
   revenue_trend: number[];
   bookings_trend: number[];
 };
+type Profile = {
+  email: string;
+  first_name: string;
+  last_name: string;
+};
+
+function getProfileDisplayName(profile: Profile): string {
+  return `${profile.first_name} ${profile.last_name}`.trim() || profile.email || "Signed in";
+}
 
 export default function Home() {
   const router = useRouter();
@@ -57,47 +63,32 @@ export default function Home() {
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [trends, setTrends] = useState<DashboardTrendsPayload | null>(null);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_NAME_KEY);
-    localStorage.removeItem(AUTH_EXPIRY_KEY);
-    localStorage.removeItem("user_name");
-    localStorage.removeItem("username");
-    localStorage.removeItem("name");
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
-    setAuthName("Not signed in");
-    router.replace("/login");
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch("/api/v1/auth/logout/", { method: "POST" });
+    } finally {
+      setAuthName("Not signed in");
+      router.replace("/login");
+    }
   }, [router]);
 
   useEffect(() => {
-    const accessToken = localStorage.getItem("access");
-    const savedName = localStorage.getItem("user_name") ?? localStorage.getItem("username") ?? localStorage.getItem("name") ?? localStorage.getItem(AUTH_NAME_KEY);
-    if (!savedName || !accessToken) {
-      logout();
-      return;
+    let active = true;
+
+    async function loadSession(): Promise<void> {
+      try {
+        const profile = await apiFetch<Profile>("/api/v1/auth/me/");
+        if (!active) return;
+        setAuthName(getProfileDisplayName(profile));
+      } catch {
+        void logout();
+      }
     }
 
-    const now = Date.now();
-    const rawExpiry = localStorage.getItem(AUTH_EXPIRY_KEY);
-    const parsedExpiry = rawExpiry ? Number(rawExpiry) : NaN;
-
-    if (!Number.isFinite(parsedExpiry) || parsedExpiry <= now) {
-      logout();
-      return;
-    }
-
-    const expiresAt = parsedExpiry;
-    setAuthName(savedName);
-
-    const timer = window.setTimeout(
-      () => {
-        logout();
-      },
-      Math.max(0, expiresAt - now),
-    );
-
-    return () => window.clearTimeout(timer);
+    void loadSession();
+    return () => {
+      active = false;
+    };
   }, [logout]);
 
   useEffect(() => {
@@ -106,6 +97,7 @@ export default function Home() {
     async function checkHealth(): Promise<void> {
       try {
         const response = await fetch(`${getApiBase()}/api/v1/analytics/dashboard/`, {
+          credentials: "include",
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -210,7 +202,7 @@ export default function Home() {
               Theme: {theme === "light" ? "Light" : "Dark"}
             </button>
             <span className="chip">Signed in: {authName}</span>
-            <button className="chip" type="button" onClick={logout}>
+            <button className="chip" type="button" onClick={() => void logout()}>
               Logout
             </button>
           </div>

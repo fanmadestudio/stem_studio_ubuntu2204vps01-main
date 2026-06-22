@@ -1,12 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, ensureCsrfToken } from "../lib/api";
 import { useRouter } from "../lib/router";
-
-const AUTH_NAME_KEY = "studio_name";
-const AUTH_EXPIRY_KEY = "auth_expires_at";
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,21 +22,15 @@ export default function LoginPage() {
 
     try {
       setSubmitting(true);
-      const payload = await apiFetch<{ access: string; refresh: string; user: { name: string; email: string } }>("/api/v1/auth/token/", {
+      await ensureCsrfToken();
+      await apiFetch("/api/v1/auth/login/", {
         method: "POST",
-        body: JSON.stringify({ email: trimmedEmail, password })
+        body: JSON.stringify({ email: trimmedEmail, password }),
       });
-      const expiresAt = Date.now() + THIRTY_MINUTES_MS;
-      localStorage.setItem("access", payload.access);
-      localStorage.setItem("refresh", payload.refresh);
-      localStorage.setItem(AUTH_NAME_KEY, payload.user.name || payload.user.email);
-      localStorage.setItem(AUTH_EXPIRY_KEY, String(expiresAt));
-      localStorage.setItem("user_name", payload.user.name || payload.user.email);
-      localStorage.setItem("name", payload.user.name || payload.user.email);
       setError("");
       router.replace("/");
-    } catch {
-      setError("Login failed. Check email/password.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Login failed. Check email/password.");
     } finally {
       setSubmitting(false);
     }
@@ -51,7 +41,7 @@ export default function LoginPage() {
       <section className="card" style={{ width: "100%", maxWidth: 420 }}>
         <h1 style={{ marginBottom: 8 }}>Login</h1>
         <p className="small" style={{ marginTop: 0 }}>
-          Sign in to access Stem Studio dashboard.
+          Sign in with your Stem Studio account.
         </p>
         <form onSubmit={onSubmit} style={{ marginTop: 14, display: "grid", gap: 10 }}>
           <input
