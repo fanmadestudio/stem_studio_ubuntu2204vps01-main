@@ -1,10 +1,13 @@
-import { redirect } from "next/navigation";
+import { useEffect } from "react";
+import { useParams, useRouter } from "../../../lib/router";
 
-type RevenueInvoiceRedirectPageProps = {
-  params: Promise<{ id: string }>;
-};
+export default function RevenueInvoiceRedirectPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-export default async function RevenueInvoiceRedirectPage({ params }: RevenueInvoiceRedirectPageProps) {
-  const { id } = await params;
-  redirect(`/invoices/${id}?readonly=1`);
+  useEffect(() => {
+    router.replace(id ? `/invoices/${id}?readonly=1` : "/monthly-report");
+  }, [id, router]);
+
+  return null;
 }

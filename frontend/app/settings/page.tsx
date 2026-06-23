@@ -51,7 +51,6 @@ export default function SettingsPage() {
         body: JSON.stringify(payload)
       });
       setProfile(updated);
-      localStorage.setItem("user_name", `${updated.first_name} ${updated.last_name}`.trim() || updated.email);
       setForm((prev) => ({ ...prev, password: "" }));
       setNotice("Account settings saved.");
     } catch (error) {

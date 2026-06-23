@@ -1,58 +1,64 @@
 # STEM Studio
 
-Monorepo aplikasi manajemen studio recording.
+STEM Studio is a full-stack recording studio management application. It helps studio administrators and staff manage clients, rooms, engineers, equipment, bookings, invoices, payments, notifications, and dashboard analytics from one web dashboard.
 
-## Stack Implementasi
+The app is built as a monorepo with a Django REST API backend and a Vite React frontend.
 
-- `backend/`: Django 4.2 + Django REST Framework + JWT (`simplejwt`)
-- `frontend/`: Next.js 15 (App Router) + React 19 + TypeScript
-- API base path: `/api/v1/`
-- Database:
-  - Default development environment: SQLite tanpa enkripsi (`DB_ENGINE=django.db.backends.sqlite3`)
-  - Opsional SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
+## What This Repository Contains
 
-## Fitur yang Sudah Diimplementasikan
+- `backend/`: Django project, REST API apps, custom user model, migrations, SQLCipher/SQLite database configuration.
+- `frontend/`: Vite + React 19 + TypeScript app with client-side routing.
+- `deploy/systemd/`: systemd service templates for VPS deployment.
+- `scripts/`: Windows helper scripts and Ubuntu 22.04 VPS setup script.
+- `VPS_PLAYBOOK.md`: VPS-only update/config/rollback runbook.
 
-- Login JWT (`/login`) dan penyimpanan token di `localStorage`
-- Dashboard (`/`) dengan KPI, tren, aktivitas booking, dan health API
-- Manajemen Client (`/clients`)
-- Booking + konflik jadwal dari backend (`/booking`)
-- Manajemen Room dari halaman booking (create/delete)
-- Staff & Equipment CRUD (`/staff-equipment`)
-- Invoices list (`/invoices`)
-- Invoice detail + riwayat pembayaran + export PDF via print (`/invoices/[id]`)
-- Settings profil user (`/settings`)
+## Main Features
 
-## Struktur Folder
+- Django session login/logout with CSRF protection.
+- Role-aware backend permissions for `admin`, `staff`, and `client`.
+- Dashboard KPIs, revenue trends, booking activity, and system health.
+- Client management.
+- Booking management with room and engineer conflict validation.
+- Room, engineer/staff, and equipment management.
+- Invoice generation from bookings.
+- Payment tracking with automatic invoice status recalculation.
+- Monthly invoice/revenue reports.
+- Notification records API.
+- Ubuntu VPS deployment support with Gunicorn, systemd, Nginx, and optional HTTPS.
 
-- `backend/` Django project + apps + migrations
-- `frontend/` Next.js app
-- `deploy/systemd/` service unit backend dan frontend
-- `scripts/vps_setup_ubuntu2204.sh` setup VPS Ubuntu 22.04
+## Stack
 
-## API Utama (Aktif)
+| Layer | Technology |
+|---|---|
+| Frontend | Vite, React 19, TypeScript |
+| Backend | Django 4.2, Django REST Framework |
+| Auth | Django built-in authentication, session cookies, CSRF |
+| Database | SQLCipher-backed SQLite by default; plain SQLite supported |
+| Production | Gunicorn, systemd, Nginx, Ubuntu 22.04 |
 
-- Auth:
-  - `POST /api/v1/auth/token/`
-  - `POST /api/v1/auth/token/refresh/`
-  - `GET/PATCH /api/v1/auth/profile/`
-  - `POST /api/v1/auth/register/`
-- Master:
-  - `/api/v1/clients/`
-  - `/api/v1/rooms/`
-  - `/api/v1/engineers/`
-  - `/api/v1/equipment/`
-- Transaksi:
-  - `/api/v1/bookings/`
-  - `/api/v1/invoices/`
-  - `/api/v1/payments/`
-- Lainnya:
-  - `/api/v1/notifications/`
-  - `GET /api/v1/analytics/dashboard/`
+## API Base
 
-## Jalankan Lokal
+All application API routes use:
 
-### 1) Backend (Django)
+```text
+/api/v1/
+```
+
+Important auth routes:
+
+```text
+GET  /api/v1/auth/csrf/
+POST /api/v1/auth/login/
+POST /api/v1/auth/logout/
+GET  /api/v1/auth/me/
+GET  /api/v1/auth/profile/
+PATCH /api/v1/auth/profile/
+POST /api/v1/auth/register/
+```
+
+## Run Locally
+
+### Backend
 
 ```powershell
 cd backend
@@ -63,30 +69,14 @@ py -3 manage.py seed_credentials
 py -3 manage.py runserver 0.0.0.0:8000
 ```
 
-Untuk SQLCipher, install dependency tambahan:
-
-```powershell
-py -3 -m pip install -r requirements-sqlcipher.txt
-```
-
-Contoh `.env` backend SQLite sudah ada di `backend/.env.example`.
-
-Jika ingin SQLite lokal tanpa enkripsi:
+For local plain SQLite, set this in `backend/.env`:
 
 ```env
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=db.sqlite3
 ```
 
-Jika ingin SQLCipher:
-
-```env
-DB_ENGINE=config.db.backends.sqlcipher
-DB_NAME=db.sqlite3
-SQLCIPHER_KEY=replace-with-strong-sqlcipher-key
-```
-
-### 2) Frontend (Next.js)
+### Frontend
 
 ```powershell
 cd frontend
@@ -94,52 +84,35 @@ npm install
 npm run dev
 ```
 
-Opsional `frontend/.env.local`:
+Optional `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.
+When `VITE_API_BASE_URL` is empty, the frontend uses same-origin `/api/...` paths. In local dev, Vite can proxy `/api` to the backend.
 
-## Default Account Seed
+## Default Accounts
 
-Command:
+Seed or update default accounts with:
 
 ```powershell
 cd backend
 py -3 manage.py seed_credentials
 ```
 
-`seed_credentials` aman dijalankan berulang (update-or-create).
+Change default credentials before real production use.
 
-## Playbook Data Singkat
+## VPS Deployment
 
-Jalankan dari folder `backend/`.
+For VPS setup, update, restart, logs, and rollback steps, use:
 
-### 1) Reset semua data
-
-```powershell
-py -3 manage.py flush --no-input
+```text
+VPS_PLAYBOOK.md
 ```
 
-### 2) Isi ulang akun default
-
-```powershell
-py -3 manage.py seed_credentials
-```
-
-## Deploy VPS (Ubuntu 22.04)
+The initial Ubuntu 22.04 setup script is:
 
 ```bash
-cd stem_studio_codesanbox_sqlite-main
-chmod +x scripts/vps_setup_ubuntu2204.sh
-PUBLIC_HOST=<VPS_IP> \
-SQLCIPHER_KEY='<STRONG_SQLCIPHER_KEY>' \
-bash scripts/vps_setup_ubuntu2204.sh
+scripts/vps_setup_ubuntu2204.sh
 ```
-
-## Catatan
-
-- Gunakan Django migration (`makemigrations` + `migrate`) untuk perubahan skema.
-- Hindari perubahan skema manual SQL tanpa rekonsiliasi migration.

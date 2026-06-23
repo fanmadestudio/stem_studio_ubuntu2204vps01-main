@@ -1,25 +1,44 @@
 export function getApiBase(): string {
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
-  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  return `http://${host}:8000`;
+  return import.meta.env.VITE_API_BASE_URL || "";
 }
 
-export function getAccessToken(): string | null {
+function getCookie(name: string): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("access");
+  const value = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`))
+    ?.split("=")[1];
+  return value ? decodeURIComponent(value) : null;
+}
+
+function shouldSendCsrf(method: string | undefined): boolean {
+  return !["GET", "HEAD", "OPTIONS", "TRACE"].includes((method ?? "GET").toUpperCase());
+}
+
+export async function ensureCsrfToken(): Promise<string | null> {
+  const existingToken = getCookie("csrftoken");
+  if (existingToken) return existingToken;
+
+  const response = await fetch(`${getApiBase()}/api/v1/auth/csrf/`, {
+    credentials: "include",
+  });
+  if (!response.ok) return null;
+  return getCookie("csrftoken");
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getAccessToken();
   const headers = new Headers(init.headers ?? {});
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (shouldSendCsrf(init.method)) {
+    const csrfToken = await ensureCsrfToken();
+    if (csrfToken) {
+      headers.set("X-CSRFToken", csrfToken);
+    }
   }
 
-  const response = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+  const response = await fetch(`${getApiBase()}${path}`, { ...init, credentials: "include", headers });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Request failed with status ${response.status}`);
@@ -72,12 +91,8 @@ export async function apiFetchList<T>(path: string, init: RequestInit = {}, opti
   let nextUrl = page.next;
 
   while (nextUrl) {
-    const token = getAccessToken();
     const headers = new Headers(init.headers ?? {});
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    const response = await fetch(nextUrl, { ...init, headers });
+    const response = await fetch(nextUrl, { ...init, credentials: "include", headers });
     if (!response.ok) {
       const text = await response.text();
       throw new Error(text || `Request failed with status ${response.status}`);
