@@ -1,6 +1,0 @@
-{
-  "$schema": "https://railway.com/railway.schema.json",
-  "deploy": {
-    "startCommand": "python manage.py migrate && python manage.py seed_credentials && gunicorn -c gunicorn.conf.py config.wsgi:application"
-  }
-}
