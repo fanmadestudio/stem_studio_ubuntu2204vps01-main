@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'backend', 'frontend')]
+    [ValidateSet('all', 'backend')]
     [string]$Target = 'all'
 )
 
@@ -25,7 +25,4 @@ function Show-LogTail {
 
 if ($Target -eq 'all' -or $Target -eq 'backend') {
     Show-LogTail -Name 'backend'
-}
-if ($Target -eq 'all' -or $Target -eq 'frontend') {
-    Show-LogTail -Name 'frontend'
 }

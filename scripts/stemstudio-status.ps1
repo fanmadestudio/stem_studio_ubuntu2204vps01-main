@@ -27,4 +27,3 @@ function Get-ServiceState {
 }
 
 Write-Host (Get-ServiceState -Name 'backend')
-Write-Host (Get-ServiceState -Name 'frontend')

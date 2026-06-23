@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'backend', 'frontend')]
+    [ValidateSet('all', 'backend')]
     [string]$Target = 'all'
 )
 
@@ -49,7 +49,4 @@ function Stop-ServiceByPidFile {
 
 if ($Target -eq 'all' -or $Target -eq 'backend') {
     Stop-ServiceByPidFile -Name 'backend' -Port 8000
-}
-if ($Target -eq 'all' -or $Target -eq 'frontend') {
-    Stop-ServiceByPidFile -Name 'frontend' -Port 3000
 }

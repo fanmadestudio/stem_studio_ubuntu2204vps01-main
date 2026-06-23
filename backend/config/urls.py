@@ -15,29 +15,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.http import JsonResponse
-from django.urls import include, path
+from django.shortcuts import redirect
+from django.urls import path
 
 
-def root_status(request):
-    return JsonResponse(
-        {
-            "service": "STEM Studio API",
-            "status": "ok",
-            "api_base": "/api/v1/",
-            "admin": "/admin/",
-        }
-    )
+admin.site.site_header = "STEM Studio Admin"
+admin.site.site_title = "STEM Studio"
+admin.site.index_title = "Internal Operations"
 
 
 urlpatterns = [
-    path("", root_status, name="root-status"),
+    path("", lambda request: redirect("admin:index"), name="admin-root"),
     path("admin/", admin.site.urls),
-    path("api/v1/", include("users.urls")),
-    path("api/v1/", include("clients.urls")),
-    path("api/v1/", include("resources.urls")),
-    path("api/v1/", include("bookings.urls")),
-    path("api/v1/", include("billing.urls")),
-    path("api/v1/", include("notifications.urls")),
-    path("api/v1/", include("analytics.urls")),
 ]

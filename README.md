@@ -1,131 +1,99 @@
 # STEM Studio
 
-Monorepo aplikasi manajemen studio recording.
+STEM Studio is an internal recording studio operations system. The application is now Django Admin-only: staff use `/admin/` for login, dashboard navigation, CRUD, user management, permissions, bookings, invoices, payments, resources, clients, and notifications.
 
-## Stack Implementasi
+The former Vite React frontend and browser API layer were removed. There is no public-facing frontend and no separate login UI.
 
-- `backend/`: Django 4.2 + Django REST Framework + JWT (`simplejwt`)
-- `frontend/`: Vite + React 19 + TypeScript
-- API base path: `/api/v1/`
-- Database:
-  - Default environment: SQLCipher (`DB_ENGINE=config.db.backends.sqlcipher`)
-  - Didukung juga SQLite tanpa enkripsi (`DB_ENGINE=django.db.backends.sqlite3`)
+## Tech Stack
 
-## Fitur yang Sudah Diimplementasikan
+| Layer | Technology |
+|---|---|
+| Internal UI | Django Admin |
+| Backend | Django 4.2 |
+| Auth | Django built-in users, staff access, groups, permissions |
+| Database | SQLCipher-backed SQLite by default; plain SQLite supported |
+| Production | Gunicorn, systemd, Nginx, Ubuntu 22.04 |
 
-- Login JWT (`/login`) dan penyimpanan token di `localStorage`
-- Dashboard (`/`) dengan KPI, tren, aktivitas booking, dan health API
-- Manajemen Client (`/clients`)
-- Booking + konflik jadwal dari backend (`/booking`)
-- Manajemen Room dari halaman booking (create/delete)
-- Staff & Equipment CRUD (`/staff-equipment`)
-- Invoices list (`/invoices`)
-- Invoice detail + riwayat pembayaran + export PDF via print (`/invoices/[id]`)
-- Settings profil user (`/settings`)
+## Folder Structure
 
-## Struktur Folder
+- `backend/`: Django project, apps, models, admin classes, migrations, settings.
+- `deploy/systemd/`: Gunicorn systemd service template.
+- `scripts/`: Windows local helper scripts and Ubuntu 22.04 VPS setup script.
+- `VPS_PLAYBOOK.md`: deployment and operations notes.
 
-- `backend/` Django project + apps + migrations
-- `frontend/` Vite React app
-- `deploy/systemd/` service unit backend dan frontend
-- `scripts/vps_setup_ubuntu2204.sh` setup VPS Ubuntu 22.04
+Removed frontend/API components:
 
-## API Utama (Aktif)
+- `frontend/`, Vite config, TypeScript config, package files, and frontend build outputs.
+- Frontend systemd service.
+- DRF serializers, viewsets, routers, API auth endpoints, and CORS settings used only by React.
 
-- Auth:
-  - `POST /api/v1/auth/token/`
-  - `POST /api/v1/auth/token/refresh/`
-  - `GET/PATCH /api/v1/auth/profile/`
-  - `POST /api/v1/auth/register/`
-- Master:
-  - `/api/v1/clients/`
-  - `/api/v1/rooms/`
-  - `/api/v1/engineers/`
-  - `/api/v1/equipment/`
-- Transaksi:
-  - `/api/v1/bookings/`
-  - `/api/v1/invoices/`
-  - `/api/v1/payments/`
-- Lainnya:
-  - `/api/v1/notifications/`
-  - `GET /api/v1/analytics/dashboard/`
+## Environment
 
-## Jalankan Lokal
+Create `backend/.env` from `backend/.env.example`:
 
-### 1) Backend (Django)
+```env
+DJANGO_SECRET_KEY=replace-with-strong-secret
+DJANGO_DEBUG=0
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+DJANGO_CSRF_TRUSTED_ORIGINS=
+DB_ENGINE=django.db.backends.sqlite3
+DB_NAME=db.sqlite3
+DB_CONN_MAX_AGE=60
+```
+
+For production, set `DJANGO_DEBUG=0`, a strong `DJANGO_SECRET_KEY`, real `DJANGO_ALLOWED_HOSTS`, HTTPS `DJANGO_CSRF_TRUSTED_ORIGINS`, and secure cookie/proxy settings. SQLCipher can be enabled with `DB_ENGINE=config.db.backends.sqlcipher` and `SQLCIPHER_KEY`.
+
+## Run Locally
 
 ```powershell
 cd backend
 Copy-Item .env.example .env
 py -3 -m pip install -r requirements.txt
 py -3 manage.py migrate
-py -3 manage.py seed_credentials
+py -3 manage.py createsuperuser
+py -3 manage.py collectstatic --noinput
 py -3 manage.py runserver 0.0.0.0:8000
 ```
 
-Contoh `.env` backend SQLCipher sudah ada di `backend/.env.example`.
+Open:
 
-Jika ingin SQLite lokal tanpa enkripsi:
-
-```env
-DB_ENGINE=django.db.backends.sqlite3
-DB_NAME=db.sqlite3
+```text
+http://127.0.0.1:8000/admin/
 ```
 
-### 2) Frontend (Vite + React)
+The repository helper script also opens the admin:
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+powershell -ExecutionPolicy Bypass -File scripts\stemstudio.ps1
 ```
 
-Opsional `frontend/.env.local`:
+## Admin Operations
 
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
-```
+Django Admin is the primary interface. Use staff users for internal access, groups for roles, and model permissions for CRUD control.
 
-Jika env ini tidak diisi, frontend otomatis pakai `http://<hostname>:8000`.
+Registered admin areas include:
 
-## Default Account Seed
+- Users and permissions
+- Clients
+- Rooms, engineers, and equipment
+- Bookings
+- Invoices and inline payments
+- Notifications
 
-Command:
+Admin classes include filters, search, date hierarchy, readonly audit fields, inlines, and safe actions such as marking bookings, equipment, engineers, invoices, and notifications.
 
-```powershell
-cd backend
-py -3 manage.py seed_credentials
-```
+## Deployment Notes
 
-`seed_credentials` aman dijalankan berulang (update-or-create).
-
-## Playbook Data Singkat
-
-Jalankan dari folder `backend/`.
-
-### 1) Reset semua data
-
-```powershell
-py -3 manage.py flush --no-input
-```
-
-### 2) Isi ulang akun default
-
-```powershell
-py -3 manage.py seed_credentials
-```
-
-## Deploy VPS (Ubuntu 22.04)
+Production deployment should run Django through Gunicorn behind Nginx:
 
 ```bash
-cd stem_studio_codesanbox_sqlite-main
-chmod +x scripts/vps_setup_ubuntu2204.sh
-PUBLIC_HOST=<VPS_IP> \
-SQLCIPHER_KEY='<STRONG_SQLCIPHER_KEY>' \
-bash scripts/vps_setup_ubuntu2204.sh
+cd backend
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py collectstatic --noinput
+gunicorn -c gunicorn.conf.py config.wsgi:application
 ```
 
-## Catatan
+Nginx should proxy all application traffic to Gunicorn and serve `/static/` from `backend/staticfiles/` and `/media/` from `backend/media/` if uploads are used.
 
-- Gunakan Django migration (`makemigrations` + `migrate`) untuk perubahan skema.
-- Hindari perubahan skema manual SQL tanpa rekonsiliasi migration.
+Use `scripts/vps_setup_ubuntu2204.sh` as the Ubuntu 22.04 baseline. Keep `DEBUG=False`, secrets in environment variables, HTTPS enabled, and database credentials outside source control.
